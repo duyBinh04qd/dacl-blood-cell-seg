@@ -6,7 +6,7 @@ import torch
 
 
 def set_seed(seed: int):
-    """Cố định seed để kết quả có thể tái lập (cùng seed -> cùng kết quả, gần đúng trên GPU)."""
+    """Fix random seeds for reproducibility (same seed -> same result, approximately on GPU)."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -15,18 +15,18 @@ def set_seed(seed: int):
 
 
 def poly_lr(base_lr: float, it: int, max_it: int, power: float = 0.9) -> float:
-    """Lịch learning rate dạng "poly": lr = base_lr * (1 - it/max_it)^0.9.
-    Đây là lịch chuẩn trong SSL4MIS / các bài CPS, CTCT, DACL."""
+    """"Poly" learning-rate schedule: lr = base_lr * (1 - it/max_it)^0.9.
+    The standard schedule in SSL4MIS and the CPS / CTCT / DACL papers."""
     return base_lr * (1 - it / max_it) ** power
 
 
 def count_params(model) -> float:
-    """Số tham số huấn luyện được, tính theo triệu (M)."""
+    """Number of trainable parameters, in millions (M)."""
     return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
 
 
 def infinite_loader(loader):
-    """Lặp DataLoader vô hạn - vì ta huấn luyện theo số vòng lặp chứ không theo epoch."""
+    """Iterate a DataLoader forever - training is driven by iterations, not epochs."""
     while True:
         for batch in loader:
             yield batch

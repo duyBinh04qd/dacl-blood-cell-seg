@@ -1,9 +1,9 @@
-"""Chia dữ liệu 70/10/20 và tạo danh sách ảnh có nhãn 5% / 10% / 20%.
+"""Split the data 70/10/20 and create the 2% / 5% / 10% / 20% labeled lists.
 
-Cách dùng:
-    python scripts/split_dataset.py --images data/raw/images --out data/splits
-Kết quả: train.txt, val.txt, test.txt, labeled_5.txt, labeled_10.txt, labeled_20.txt
-(mỗi dòng là tên tệp không có phần mở rộng).
+Usage:
+    python scripts/split_dataset.py --images data/processed/images --out data/splits
+Output: train.txt, val.txt, test.txt, labeled_{2,5,10,20}.txt
+(one file name without extension per line).
 """
 import argparse
 import random
@@ -20,6 +20,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--images", required=True)
     ap.add_argument("--out", default="data/splits")
+    # Keep the same seed across all experiments so every model uses the same split.
     ap.add_argument("--seed", type=int, default=2026)
     args = ap.parse_args()
 
@@ -35,10 +36,10 @@ def main():
     write(out / "train.txt", train)
     write(out / "val.txt", val)
     write(out / "test.txt", test)
-    for pct in (5, 10, 20):
+    for pct in (2, 5, 10, 20):
         k = int(len(train) * pct / 100)
-        write(out / f"labeled_{pct}.txt", train[:k])  # phần còn lại của train = không nhãn
-        print(f"{pct}% nhãn: {k} ảnh có nhãn / {len(train) - k} ảnh không nhãn")
+        write(out / f"labeled_{pct}.txt", train[:k])  # the rest of train = unlabeled
+        print(f"{pct}% labeled: {k} labeled / {len(train) - k} unlabeled images")
     print(f"train={len(train)}, val={len(val)}, test={len(test)}")
 
 

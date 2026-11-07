@@ -1,4 +1,4 @@
-# --- Dữ liệu & kết quả (không đưa lên GitHub) ---
+# --- Data & results (not pushed to GitHub) ---
 data/
 checkpoints/
 runs/
@@ -6,6 +6,7 @@ outputs/
 *.pth
 *.pt
 *.ckpt
+results_*.zip
 
 # --- Python ---
 __pycache__/
@@ -14,7 +15,7 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# --- LaTeX (file sinh ra khi biên dịch) ---
+# --- LaTeX build files ---
 *.aux
 *.log
 *.out
@@ -25,7 +26,7 @@ venv/
 *.fdb_latexmk
 *.fls
 
-# --- Hệ điều hành / IDE ---
+# --- OS / IDE ---
 .DS_Store
 Thumbs.db
 .vscode/

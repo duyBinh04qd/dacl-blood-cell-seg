@@ -1,7 +1,7 @@
-"""Các hàm mất mát của DACL (Wang et al., 2026).
+"""DACL loss functions (Wang et al., 2026).
 
-Ký hiệu: logits có dạng (B, C, H, W). p là xác suất của CNN (UNeXt),
-q là xác suất của Transformer (Swin-Unet).
+Notation: logits have shape (B, C, H, W). p is the CNN (UNeXt) probability,
+q is the Transformer (Swin-Unet) probability.
 """
 import torch
 import torch.nn as nn
@@ -11,7 +11,7 @@ EPS = 1e-8
 
 
 class DiceLoss(nn.Module):
-    """Dice loss nhiều lớp; target là chỉ số lớp (B, H, W)."""
+    """Multi-class Dice loss; target holds class indices (B, H, W)."""
 
     def __init__(self, n_classes: int):
         super().__init__()
@@ -28,12 +28,12 @@ class DiceLoss(nn.Module):
 
 
 def ce_dice(logits, target, dice_fn):
-    """H(.) + D(.) -- dùng cho cả L_sup và L_cps."""
+    """H(.) + D(.) -- used for both L_sup and L_cps."""
     return F.cross_entropy(logits, target.long()) + dice_fn(logits, target)
 
 
 def cps_loss(logits1, logits2, dice_fn):
-    """Cross Pseudo Supervision (Eq. 1): nhãn giả one-hot, không truyền gradient."""
+    """Cross Pseudo Supervision (Eq. 1): one-hot pseudo labels, no gradient through them."""
     pseudo1 = logits1.detach().argmax(dim=1)
     pseudo2 = logits2.detach().argmax(dim=1)
     l1 = ce_dice(logits1, pseudo2, dice_fn)
@@ -48,7 +48,7 @@ def mixup(x_i, x_j, sigma: float = 0.5):
 def ict_loss(student_logits_mixed, teacher_logits_i, teacher_logits_j, sigma: float = 0.5):
     """Interpolation consistency: f2(Mix(xi,xj)) ~ Mix(f_ema(xi), f_ema(xj)).
 
-    So sánh trên xác suất softmax, dùng MSE trung bình.
+    Compared on softmax probabilities with mean squared error.
     """
     with torch.no_grad():
         target = mixup(torch.softmax(teacher_logits_i, 1), torch.softmax(teacher_logits_j, 1), sigma)
@@ -56,7 +56,7 @@ def ict_loss(student_logits_mixed, teacher_logits_i, teacher_logits_j, sigma: fl
 
 
 def _entropy(prob):
-    """Entropy Shannon theo từng điểm ảnh -> (B, H, W)."""
+    """Per-pixel Shannon entropy -> (B, H, W)."""
     return -(prob * torch.log(prob + EPS)).sum(dim=1)
 
 
@@ -75,7 +75,7 @@ def dac_loss(logits_cnn, logits_tr):
 
 @torch.no_grad()
 def update_ema(ema_model, model, alpha: float = 0.99, global_step: int = 0):
-    """Cập nhật tham số giáo viên EMA."""
+    """Update the EMA teacher parameters."""
     alpha = min(1 - 1 / (global_step + 1), alpha)
     for ema_p, p in zip(ema_model.parameters(), model.parameters()):
         ema_p.mul_(alpha).add_(p.detach(), alpha=1 - alpha)
@@ -87,7 +87,7 @@ def total_loss(sup1, sup2, cps, ict, dac, lam=2.0, tau=2.0, beta=10.0):
 
 
 if __name__ == "__main__":
-    # Kiểm tra nhanh với dữ liệu ngẫu nhiên
+    # Quick self-test on random data
     torch.manual_seed(0)
     B, C, H, W = 2, 2, 64, 64
     dice = DiceLoss(C)
@@ -100,4 +100,4 @@ if __name__ == "__main__":
         cps_loss(a, b, dice), ict_loss(b, xi, xj), dac_loss(a, b),
     )
     loss.backward()
-    print("total loss =", float(loss), "| grad ok:", a.grad is not None and b.grad is not None)
+    print("total loss =", loss.item(), "| grad ok:", a.grad is not None and b.grad is not None)

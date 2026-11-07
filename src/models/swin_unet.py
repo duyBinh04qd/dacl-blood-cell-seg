@@ -1,17 +1,17 @@
 """Swin-Unet: Unet-like Pure Transformer for Medical Image Segmentation (Cao et al., ECCV-W 2022).
 
-Cài đặt lại theo repo gốc (HuCaoFighting/Swin-Unet), giữ nguyên tên tham số để nạp được
-trọng số Swin-T tiền huấn luyện ImageNet của Microsoft.
+Re-implemented from the official repo (HuCaoFighting/Swin-Unet), keeping parameter names so
+Microsoft's ImageNet-pretrained Swin-T weights load directly.
 
-Cấu hình "tiny" dùng trong DACL:
-  embed_dim=96, depths=[2,2,2,2], num_heads=[3,6,12,24], window_size=7, ảnh 224x224
-  -> đặc trưng [96, 192, 384] ở bộ mã hóa, 768 ở nút cổ chai, ~27M tham số.
+"Tiny" configuration used in DACL:
+  embed_dim=96, depths=[2,2,2,2], num_heads=[3,6,12,24], window_size=7, 224x224 input
+  -> encoder features [96, 192, 384], bottleneck 768, ~27M parameters.
 """
 import torch
 import torch.nn as nn
 from timm.layers import DropPath, to_2tuple, trunc_normal_
 
-# Trọng số Swin-T (ImageNet-1K) chính thức của Microsoft - đúng file mà repo Swin-Unet sử dụng.
+# Official Microsoft Swin-T (ImageNet-1K) weights - the same file the Swin-Unet repo uses.
 SWIN_TINY_URL = (
     "https://github.com/SwinTransformer/storage/releases/download/v1.0.0/"
     "swin_tiny_patch4_window7_224.pth"
@@ -45,7 +45,7 @@ def window_reverse(windows, ws, H, W):
 
 
 class WindowAttention(nn.Module):
-    """Self-attention trong cửa sổ cục bộ, có bias vị trí tương đối."""
+    """Local-window self-attention with relative position bias."""
 
     def __init__(self, dim, window_size, num_heads, qkv_bias=True, attn_drop=0.0, proj_drop=0.0):
         super().__init__()
@@ -95,7 +95,7 @@ class SwinTransformerBlock(nn.Module):
         self.window_size = window_size
         self.shift_size = shift_size
         if min(input_resolution) <= window_size:
-            # Feature map nhỏ hơn cửa sổ -> không chia cửa sổ, không dịch.
+            # Feature map not larger than the window -> no partitioning, no shift.
             self.shift_size = 0
             self.window_size = min(input_resolution)
         self.norm1 = nn.LayerNorm(dim)
@@ -138,7 +138,7 @@ class SwinTransformerBlock(nn.Module):
 
 
 class PatchMerging(nn.Module):
-    """Giảm kích thước 2 lần, tăng kênh 2 lần (bộ mã hóa)."""
+    """Halve the resolution, double the channels (encoder)."""
 
     def __init__(self, input_resolution, dim):
         super().__init__()
@@ -155,7 +155,7 @@ class PatchMerging(nn.Module):
 
 
 class PatchExpand(nn.Module):
-    """Tăng kích thước 2 lần, giảm kênh 2 lần (bộ giải mã)."""
+    """Double the resolution, halve the channels (decoder)."""
 
     def __init__(self, input_resolution, dim, dim_scale=2):
         super().__init__()
@@ -172,7 +172,7 @@ class PatchExpand(nn.Module):
 
 
 class FinalPatchExpandX4(nn.Module):
-    """Tăng kích thước 4 lần để trở về độ phân giải ảnh gốc."""
+    """4x upsampling back to the input resolution."""
 
     def __init__(self, input_resolution, dim):
         super().__init__()
@@ -196,7 +196,7 @@ class BasicLayer(nn.Module):
         super().__init__()
         self.blocks = nn.ModuleList([
             SwinTransformerBlock(dim, input_resolution, num_heads, window_size,
-                                 0 if i % 2 == 0 else window_size // 2,  # khối chẵn: W-MSA, lẻ: SW-MSA
+                                 0 if i % 2 == 0 else window_size // 2,  # even blocks: W-MSA, odd: SW-MSA
                                  mlp_ratio, qkv_bias, drop, attn_drop,
                                  drop_path[i] if isinstance(drop_path, list) else drop_path)
             for i in range(depth)])
@@ -229,9 +229,9 @@ class SwinUnet(nn.Module):
                  depths=(2, 2, 2, 2), num_heads=(3, 6, 12, 24), window_size=7,
                  mlp_ratio=4.0, qkv_bias=True, drop_rate=0.0, attn_drop_rate=0.0, drop_path_rate=0.1):
         """
-        img_size: kích thước ảnh vào. img_size/4, /8, /16 phải chia hết cho window_size
-                  -> với window 7 dùng 224 (hoặc 448).
-        drop_path_rate: Stochastic Depth, chống quá khớp (0.1 theo cấu hình gốc của Swin-Unet).
+        img_size: input size. img_size/4, /8, /16 must be divisible by window_size
+                  -> with window 7 use 224 (or 448).
+        drop_path_rate: stochastic depth against overfitting (0.1 in the original Swin-Unet config).
         """
         super().__init__()
         self.num_layers = len(depths)
@@ -241,7 +241,7 @@ class SwinUnet(nn.Module):
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
         L = self.num_layers
 
-        # ---- Bộ mã hóa ----
+        # ---- Encoder ----
         self.layers = nn.ModuleList()
         for i in range(L):
             self.layers.append(BasicLayer(
@@ -250,7 +250,7 @@ class SwinUnet(nn.Module):
                 dpr[sum(depths[:i]):sum(depths[:i + 1])],
                 downsample=PatchMerging if i < L - 1 else None))
 
-        # ---- Bộ giải mã (đối xứng) ----
+        # ---- Decoder (symmetric) ----
         self.layers_up = nn.ModuleList()
         self.concat_back_dim = nn.ModuleList()
         for i in range(L):
@@ -300,8 +300,8 @@ class SwinUnet(nn.Module):
         return self.output(x)  # logits (B, num_classes, H, W)
 
     def load_pretrained(self, path_or_url=SWIN_TINY_URL):
-        """Nạp trọng số Swin-T ImageNet cho bộ mã hóa VÀ sao chép đối xứng sang bộ giải mã
-        (layers.k -> layers_up.(3-k)), đúng như Swin-Unet gốc. Các khóa lệch kích thước bị bỏ qua."""
+        """Load ImageNet Swin-T weights into the encoder AND mirror them into the decoder
+        (layers.k -> layers_up.(3-k)), as the original Swin-Unet does. Shape-mismatched keys are skipped."""
         if str(path_or_url).startswith("http"):
             ckpt = torch.hub.load_state_dict_from_url(path_or_url, map_location="cpu", progress=True)
         else:
@@ -315,5 +315,5 @@ class SwinUnet(nn.Module):
         own = self.state_dict()
         loadable = {k: v for k, v in full.items() if k in own and own[k].shape == v.shape}
         self.load_state_dict(loadable, strict=False)
-        print(f"[Swin-Unet] nạp {len(loadable)}/{len(own)} tensor từ trọng số tiền huấn luyện")
+        print(f"[Swin-Unet] loaded {len(loadable)}/{len(own)} tensors from pretrained weights")
         return len(loadable)

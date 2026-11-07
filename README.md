@@ -1,28 +1,23 @@
-# DACL cho phân đoạn tế bào máu trong ảnh hiển vi
+# DACL for Blood Cell Segmentation in Microscopy Images
 
-Đồ án khoa học: **Nghiên cứu và ứng dụng mô hình "Dual Agreement Consistency Learning" (DACL) cho bài toán phân đoạn tế bào máu trong ảnh hiển vi.**
+Research project: **Applying "Dual Agreement Consistency Learning" (DACL) to semi-supervised blood cell segmentation in microscopy images.**
 
-DACL ([Wang et al., 2026](https://arxiv.org/abs/2606.25254)) là khung học bán giám sát huấn luyện đồng thời UNeXt (CNN nhẹ, ~1.5M tham số) và Swin-Unet (Transformer), kết hợp:
+DACL ([Wang et al., 2026](https://arxiv.org/abs/2606.25254)) is a semi-supervised framework that jointly trains UNeXt (lightweight CNN, ~1.5M parameters) and Swin-Unet (Transformer), combining:
 
-- **CPS** – giám sát giả chéo giữa hai mạng,
-- **ICT** – nhất quán nội suy (mixup) với giáo viên EMA,
-- **DAC** – mất mát đồng thuận kép (KL + entropy) theo từng điểm ảnh.
+- **CPS** – cross pseudo supervision between the two networks,
+- **ICT** – interpolation (mixup) consistency with an EMA teacher,
+- **DAC** – pixel-wise dual-agreement consistency loss (KL + entropy).
 
-Khi suy luận chỉ dùng UNeXt.
+Only UNeXt is used at inference time.
 
-## Dữ liệu
+## Dataset
 
-Bộ dữ liệu **Blood Cell Segmentation** (1 328 ảnh + 1 328 mask) của Depto et al., *Tissue and Cell* 73 (2021) 101653 – tải tại
-<https://github.com/Deponker/Blood-cell-segmentation>.
+**Blood Cell Segmentation** dataset (1,328 images + 1,328 masks) by Depto et al., *Tissue and Cell* 73 (2021) 101653 –
+download from <https://github.com/Deponker/Blood-cell-segmentation>.
 
-Dữ liệu **không** được đưa lên repo này. Sau khi tải, sắp xếp như sau:
+The data is **not** included in this repository.
 
-```
-data/raw/images/   # ảnh gốc
-data/raw/masks/    # mask (cùng tên tệp với ảnh)
-```
-
-## Cài đặt
+## Installation
 
 ```bash
 python -m venv .venv
@@ -30,51 +25,53 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Sử dụng
+## Usage
+
+### Kaggle (self-contained notebooks, no cloning needed)
+
+| Notebook | Model |
+|---|---|
+| [notebooks/FS_UNeXt.ipynb](notebooks/FS_UNeXt.ipynb) | Fully supervised UNeXt |
+| [notebooks/FS_SwinUnet.ipynb](notebooks/FS_SwinUnet.ipynb) | Fully supervised Swin-Unet |
+
+Each notebook covers: configuration → data preparation → **data augmentation** (configurable, with previews) →
+model → training at 5/10/20/100% labels → results table, training curves and prediction overlays.
+Only `CFG.RAW_DIR` needs to point to your Kaggle Dataset.
+
+### Local scripts
 
 ```bash
-# 1. Chuẩn hóa dữ liệu gốc (ghép cặp *_image / *_mask, thu nhỏ 640x480, nhị phân hóa mask)
-python scripts/prepare_dataset.py --raw <thu-muc-du-lieu-goc> --out data/processed
-# 2. Chia 70/10/20 + danh sách ảnh có nhãn 5/10/20%
+# 1. Normalize the raw data (pair *_image / *_mask, resize to 640x480, binarize masks)
+python scripts/prepare_dataset.py --raw <raw-data-folder> --out data/processed
+# 2. 70/10/20 split + 2/5/10/20% labeled lists
 python scripts/split_dataset.py --images data/processed/images --out data/splits
-# 3. Huấn luyện có giám sát (FS)
+# 3. Fully supervised training
 python train_supervised.py --model unext     --labeled_ratio 100
 python train_supervised.py --model swin_unet --labeled_ratio 10 --pretrained imagenet
-# 4. Chỉ đánh giá lại trên tập test
+# 4. Re-evaluate on the test set only
 python train_supervised.py --model unext --labeled_ratio 100 --eval_only
 ```
 
-### Chạy trên Kaggle (notebook độc lập, không cần clone code)
-
-| Notebook | Mô hình |
-|---|---|
-| [notebooks/FS_UNeXt.ipynb](notebooks/FS_UNeXt.ipynb) | UNeXt huấn luyện có giám sát |
-| [notebooks/FS_SwinUnet.ipynb](notebooks/FS_SwinUnet.ipynb) | Swin-Unet huấn luyện có giám sát |
-
-Mỗi notebook gồm: cấu hình → chuẩn bị dữ liệu → **data augmentation** (cấu hình + xem trực quan) →
-mô hình → huấn luyện ở các mức nhãn 5/10/20/100% → bảng kết quả, đường cong, ảnh dự đoán.
-Chỉ cần sửa `CFG.RAW_DIR` cho đúng đường dẫn Kaggle Dataset.
-
-Kết quả mỗi lần chạy nằm trong `runs/<model>_<ratio>p_s<seed>/`: `best.pth`, `last.pth`,
+Each run writes to `runs/<model>_<ratio>p_s<seed>/`: `best.pth`, `last.pth`,
 `log.csv`, `config.json`, `test_per_image.csv`, `test_summary.json`.
 
-## Cấu trúc thư mục
+## Project structure
 
 ```
-├── docs/latex/               # đề cương / báo cáo LaTeX
-├── notebooks/                # notebook chạy trên Kaggle
-├── scripts/                  # chuẩn hóa, kiểm tra & chia dữ liệu
+├── docs/latex/               # project proposal / report (LaTeX, Vietnamese)
+├── notebooks/                # Kaggle notebooks
+├── scripts/                  # data preparation, inspection & splitting
 ├── src/
-│   ├── data/                 # Dataset, tăng cường dữ liệu
+│   ├── data/                 # Dataset, augmentation
 │   ├── models/               # UNeXt, Swin-Unet
 │   ├── dacl/losses.py        # L_sup, L_cps, L_ict, L_dac, EMA
-│   └── utils/                # chỉ số đánh giá, tiện ích
-├── train_supervised.py       # huấn luyện có giám sát
+│   └── utils/                # metrics, helpers
+├── train_supervised.py       # fully supervised training
 ├── requirements.txt
 └── README.md
 ```
 
-## Trích dẫn
+## Citation
 
 ```bibtex
 @article{wang2026dacl,

@@ -1,12 +1,12 @@
 """UNeXt: MLP-based Rapid Medical Image Segmentation Network (Valanarasu & Patel, MICCAI 2022).
 
-Cài đặt lại theo repo gốc (jeya-maria-jose/UNeXt-pytorch), có thể cấu hình số kênh.
-DACL dùng số kênh bộ mã hóa {32, 64, 128, 160, 256} (~1.47M tham số).
+Re-implemented from the official repo (jeya-maria-jose/UNeXt-pytorch) with configurable channels.
+DACL states encoder channels {32, 64, 128, 160, 256} (see UNEXT_DIMS in __init__.py).
 
-Kiến trúc:
-  - 3 tầng tích chập (Conv -> BN -> MaxPool -> ReLU), mỗi tầng giảm kích thước 2 lần
-  - 2 tầng "Tokenized MLP" (Shifted MLP) ở tầng sâu + nút cổ chai
-  - Bộ giải mã đối xứng, nối tắt (skip connection) bằng phép CỘNG thay vì nối kênh
+Architecture:
+  - 3 convolutional stages (Conv -> BN -> MaxPool -> ReLU), each halving the resolution
+  - 2 "Tokenized MLP" (shifted MLP) stages at depth + bottleneck
+  - Symmetric decoder; skip connections use ADDITION instead of concatenation
 """
 import torch
 import torch.nn as nn
@@ -15,7 +15,7 @@ from timm.layers import DropPath, trunc_normal_
 
 
 class DWConv(nn.Module):
-    """Tích chập theo chiều sâu 3x3 trên chuỗi token (mã hóa vị trí ngầm)."""
+    """3x3 depth-wise convolution over the token sequence (implicit positional encoding)."""
 
     def __init__(self, dim):
         super().__init__()
@@ -29,8 +29,8 @@ class DWConv(nn.Module):
 
 
 class ShiftMLP(nn.Module):
-    """Shifted MLP: dịch (shift) từng nhóm kênh theo chiều cao rồi chiều rộng trước mỗi lớp FC,
-    giúp MLP "nhìn" được lân cận cục bộ giống tích chập nhưng rẻ hơn."""
+    """Shifted MLP: shift channel groups along height, then width, before each FC layer,
+    so the MLP "sees" a local neighbourhood like a convolution, but cheaper."""
 
     def __init__(self, in_features, hidden_features=None, out_features=None, drop=0.0, shift_size=5):
         super().__init__()
@@ -45,7 +45,7 @@ class ShiftMLP(nn.Module):
         self.pad = shift_size // 2
 
     def _shift(self, x, H, W, dim):
-        """Chia kênh thành shift_size nhóm, nhóm thứ k được cuộn (roll) k-pad pixel theo trục dim."""
+        """Split channels into shift_size groups; group k is rolled by k-pad pixels along axis dim."""
         B, N, C = x.shape
         xn = x.transpose(1, 2).reshape(B, C, H, W)
         xn = F.pad(xn, (self.pad, self.pad, self.pad, self.pad), "constant", 0)
@@ -57,12 +57,12 @@ class ShiftMLP(nn.Module):
         return xs.reshape(B, C, H * W).transpose(1, 2)
 
     def forward(self, x, H, W):
-        x = self._shift(x, H, W, dim=2)  # dịch theo chiều cao
+        x = self._shift(x, H, W, dim=2)  # shift along height
         x = self.fc1(x)
         x = self.dwconv(x, H, W)
         x = self.act(x)
         x = self.drop(x)
-        x = self._shift(x, H, W, dim=3)  # dịch theo chiều rộng
+        x = self._shift(x, H, W, dim=3)  # shift along width
         x = self.fc2(x)
         return self.drop(x)
 
@@ -79,7 +79,7 @@ class ShiftedBlock(nn.Module):
 
 
 class OverlapPatchEmbed(nn.Module):
-    """Conv 3x3 stride 2 -> giảm kích thước 2 lần và chuyển feature map thành chuỗi token."""
+    """3x3 stride-2 conv -> halves the resolution and turns the feature map into tokens."""
 
     def __init__(self, in_chans, embed_dim, patch_size=3, stride=2):
         super().__init__()
@@ -96,26 +96,26 @@ class OverlapPatchEmbed(nn.Module):
 class UNext(nn.Module):
     def __init__(self, num_classes=2, in_chans=3, dims=(32, 64, 128, 160, 256), drop_path_rate=0.0):
         """
-        num_classes: số lớp đầu ra (2 = nền + tế bào).
-        dims: số kênh 5 tầng mã hóa. 3 giá trị đầu cho tầng tích chập,
-              2 giá trị cuối cho tầng Tokenized MLP và nút cổ chai.
-              Bài báo UNeXt gốc: (16, 32, 128, 160, 256); DACL: (32, 64, 128, 160, 256).
+        num_classes: number of output classes (2 = background + cell).
+        dims: channels of the 5 encoder stages. The first 3 are the conv stages,
+              the last 2 the tokenized-MLP stage and the bottleneck.
+              Original UNeXt: (16, 32, 128, 160, 256); DACL: (32, 64, 128, 160, 256).
         """
         super().__init__()
         c1, c2, c3, c4, c5 = dims
-        # ---- Bộ mã hóa: tầng tích chập ----
+        # ---- Encoder: convolutional stages ----
         self.encoder1 = nn.Conv2d(in_chans, c1, 3, 1, 1)
         self.encoder2 = nn.Conv2d(c1, c2, 3, 1, 1)
         self.encoder3 = nn.Conv2d(c2, c3, 3, 1, 1)
         self.ebn1, self.ebn2, self.ebn3 = nn.BatchNorm2d(c1), nn.BatchNorm2d(c2), nn.BatchNorm2d(c3)
-        # ---- Bộ mã hóa: Tokenized MLP ----
+        # ---- Encoder: tokenized MLP ----
         self.patch_embed3 = OverlapPatchEmbed(c3, c4)
         self.patch_embed4 = OverlapPatchEmbed(c4, c5)
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, 3)]
         self.block1 = nn.ModuleList([ShiftedBlock(c4, drop_path=dpr[0])])
         self.block2 = nn.ModuleList([ShiftedBlock(c5, drop_path=dpr[1])])
         self.norm3, self.norm4 = nn.LayerNorm(c4), nn.LayerNorm(c5)
-        # ---- Bộ giải mã ----
+        # ---- Decoder ----
         self.dblock1 = nn.ModuleList([ShiftedBlock(c4, drop_path=dpr[0])])
         self.dblock2 = nn.ModuleList([ShiftedBlock(c3, drop_path=dpr[1])])
         self.dnorm3, self.dnorm4 = nn.LayerNorm(c4), nn.LayerNorm(c3)
@@ -149,7 +149,7 @@ class UNext(nn.Module):
 
     def forward(self, x):
         B = x.shape[0]
-        # Bộ mã hóa - tầng tích chập (1/2, 1/4, 1/8)
+        # Encoder - conv stages (1/2, 1/4, 1/8)
         out = F.relu(F.max_pool2d(self.ebn1(self.encoder1(x)), 2, 2)); t1 = out
         out = F.relu(F.max_pool2d(self.ebn2(self.encoder2(out)), 2, 2)); t2 = out
         out = F.relu(F.max_pool2d(self.ebn3(self.encoder3(out)), 2, 2)); t3 = out
@@ -158,13 +158,13 @@ class UNext(nn.Module):
         for blk in self.block1:
             out = blk(out, H, W)
         out = self._to_map(self.norm3(out), B, H, W); t4 = out
-        # Nút cổ chai (1/32)
+        # Bottleneck (1/32)
         out, H, W = self.patch_embed4(out)
         for blk in self.block2:
             out = blk(out, H, W)
         out = self._to_map(self.norm4(out), B, H, W)
 
-        # Bộ giải mã
+        # Decoder
         out = F.relu(self._up(self.dbn1(self.decoder1(out)))) + t4
         _, _, H, W = out.shape
         out = out.flatten(2).transpose(1, 2)

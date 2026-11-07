@@ -1,10 +1,10 @@
-"""Huấn luyện CÓ GIÁM SÁT (Fully Supervised - FS) cho UNeXt hoặc Swin-Unet.
+"""FULLY SUPERVISED (FS) training for UNeXt or Swin-Unet.
 
-Đây là các mốc so sánh trong bảng kết quả:
-  - FS với 100% nhãn  -> giới hạn trên
-  - FS với 5/10/20% nhãn (chỉ dùng phần ảnh có nhãn, bỏ ảnh không nhãn) -> giới hạn dưới của SSL
+These are the reference rows of the results table:
+  - FS with 100% labels  -> upper bound
+  - FS with 5/10/20% labels (labeled images only, unlabeled ones discarded) -> SSL lower bound
 
-Ví dụ:
+Examples:
   python train_supervised.py --model unext     --labeled_ratio 100
   python train_supervised.py --model swin_unet --labeled_ratio 10 --pretrained imagenet
   python train_supervised.py --model unext --eval_only --ckpt runs/unext_100p_s2026/best.pth
@@ -28,67 +28,67 @@ from src.utils.metrics import binary_metrics
 
 
 def get_args():
-    ap = argparse.ArgumentParser(description="Huấn luyện có giám sát UNeXt / Swin-Unet")
+    ap = argparse.ArgumentParser(description="Fully supervised training of UNeXt / Swin-Unet")
 
-    # ======================= MÔ HÌNH =======================
-    # unext     : CNN nhẹ (~1.47M tham số) - mô hình sẽ triển khai trong DACL.
-    # swin_unet : Transformer (~27M tham số) - "người thầy" trong DACL.
+    # ======================= MODEL =======================
+    # unext     : lightweight CNN (~1.5M params) - the model deployed by DACL.
+    # swin_unet : Transformer (~27M params) - the "teacher" in DACL.
     ap.add_argument("--model", choices=["unext", "swin_unet"], required=True)
-    # Số lớp phân đoạn: 2 = nền (0) + tế bào (1). Mask của bộ dữ liệu là nhị phân.
+    # Number of segmentation classes: 2 = background (0) + cell (1). Dataset masks are binary.
     ap.add_argument("--num_classes", type=int, default=2)
-    # Cấu hình số kênh UNeXt: "dacl" (32,64,128,160,256; 1.58M) hoặc "original" (16,32,...; 1.47M).
-    # Phải dùng CÙNG một cấu hình cho FS UNeXt và UNeXt trong DACL để so sánh công bằng.
+    # UNeXt channel configuration: "dacl" (32,64,128,160,256; 1.58M) or "original" (16,32,...; 1.47M).
+    # Use the SAME configuration for FS-UNeXt and the UNeXt inside DACL for a fair comparison.
     ap.add_argument("--unext_variant", choices=["dacl", "original"], default="dacl")
-    # Trọng số khởi tạo cho Swin-Unet:
-    #   "imagenet"   -> tự tải Swin-T của Microsoft (Kaggle cần BẬT Internet trong Settings)
-    #   "<path.pth>" -> file đã tải sẵn (khi tắt Internet, upload file thành Kaggle Dataset)
-    #   ""           -> khởi tạo ngẫu nhiên (KHÔNG khuyến nghị - DACL dùng bản tiền huấn luyện)
-    # UNeXt luôn huấn luyện từ đầu, tham số này bị bỏ qua.
+    # Swin-Unet initialization:
+    #   "imagenet"   -> download Microsoft's Swin-T (Kaggle: turn Internet ON in Settings)
+    #   "<path.pth>" -> local file (with Internet OFF, upload the file as a Kaggle Dataset)
+    #   ""           -> random init (NOT recommended - DACL uses the pretrained model)
+    # UNeXt is always trained from scratch; this option is ignored for it.
     ap.add_argument("--pretrained", default="imagenet")
 
-    # ======================= DỮ LIỆU =======================
-    # Thư mục do prepare_dataset.py tạo (chứa images/ và masks/).
+    # ======================= DATA =======================
+    # Folder created by prepare_dataset.py (contains images/ and masks/).
     ap.add_argument("--data_dir", default="data/processed")
-    # Thư mục do split_dataset.py tạo (train.txt, val.txt, test.txt, labeled_X.txt).
+    # Folder created by split_dataset.py (train.txt, val.txt, test.txt, labeled_X.txt).
     ap.add_argument("--split_dir", default="data/splits")
-    # Phần trăm ảnh có nhãn dùng để huấn luyện: 100 = toàn bộ train.txt,
-    # 5/10/20 = đọc labeled_5.txt / labeled_10.txt / labeled_20.txt (khớp với các thí nghiệm SSL).
+    # Percentage of labeled images used for training: 100 = the whole train.txt,
+    # 2/5/10/20 = read labeled_X.txt (identical to the SSL experiments).
     ap.add_argument("--labeled_ratio", type=int, default=100)
-    # Kích thước ảnh vào mạng. 224 tương thích Swin-Unet (window 7, trọng số ImageNet 224).
-    # Dùng CÙNG kích thước cho cả hai mô hình để so sánh công bằng.
+    # Network input size. 224 matches Swin-Unet (window 7, ImageNet weights at 224).
+    # Use the SAME size for both models for a fair comparison.
     ap.add_argument("--img_size", type=int, default=224)
 
-    # ======================= HUẤN LUYỆN =======================
-    # Huấn luyện theo SỐ VÒNG LẶP thay vì epoch: số bước cập nhật như nhau ở mọi mức nhãn
-    # (với 46 ảnh, 1 epoch chỉ vài bước). 30k vòng là mức phổ biến trong SSL4MIS.
-    # Mẹo: chạy thử --max_iters 500 trước để kiểm tra pipeline.
+    # ======================= TRAINING =======================
+    # Train for a fixed NUMBER OF ITERATIONS rather than epochs: every label ratio gets the
+    # same number of updates (with 46 images an epoch is only a few steps). 30k is common in SSL4MIS.
+    # Tip: run --max_iters 500 first to sanity-check the pipeline.
     ap.add_argument("--max_iters", type=int, default=30000)
-    # Kích thước batch. 8 vừa GPU T4/P100 (16GB) cho cả hai mô hình ở 224x224.
-    # Nếu báo lỗi "CUDA out of memory" với Swin-Unet thì giảm xuống 4.
+    # Batch size. 8 fits a 16GB T4/P100 for both models at 224x224.
+    # Reduce to 4 if Swin-Unet raises "CUDA out of memory".
     ap.add_argument("--batch_size", type=int, default=8)
-    # Optimizer SGD theo bài báo DACL: lr 0.01, momentum 0.9, weight decay 1e-4,
-    # lr giảm dần theo lịch poly: lr * (1 - iter/max_iters)^0.9.
+    # SGD as in the DACL paper: lr 0.01, momentum 0.9, weight decay 1e-4,
+    # decayed with the poly schedule lr * (1 - iter/max_iters)^0.9.
     ap.add_argument("--base_lr", type=float, default=0.01)
     ap.add_argument("--momentum", type=float, default=0.9)
     ap.add_argument("--weight_decay", type=float, default=1e-4)
-    # Mixed precision (FP16): nhanh hơn ~1.5-2x và tốn ít bộ nhớ hơn trên GPU Kaggle.
-    ap.add_argument("--no_amp", action="store_true", help="tắt mixed precision")
-    # Số tiến trình đọc dữ liệu. Kaggle có 4 CPU -> 2-4 là hợp lý.
+    # Mixed precision (FP16): ~1.5-2x faster and less memory on Kaggle GPUs.
+    ap.add_argument("--no_amp", action="store_true", help="disable mixed precision")
+    # Data-loading workers. Kaggle has 4 CPUs -> 2-4 is reasonable.
     ap.add_argument("--num_workers", type=int, default=4)
-    # Seed ngẫu nhiên - chạy lại với seed khác (vd 2026, 2027, 2028) để báo cáo mean ± std.
+    # Random seed - rerun with other seeds (e.g. 2026, 2027, 2028) to report mean ± std.
     ap.add_argument("--seed", type=int, default=2026)
 
-    # ======================= ĐÁNH GIÁ & LƯU =======================
-    # Cứ mỗi val_interval vòng lặp thì đánh giá trên tập validation và lưu best.pth
-    # nếu Dice validation tốt hơn (giống bài báo: lưu trọng số tốt nhất trên validation).
+    # ======================= EVALUATION & SAVING =======================
+    # Every val_interval iterations evaluate on the validation set and save best.pth when
+    # the validation Dice improves (as in the paper: keep the best validation weights).
     ap.add_argument("--val_interval", type=int, default=500)
     ap.add_argument("--log_interval", type=int, default=50)
-    # Thư mục kết quả. Trên Kaggle, chỉ /kaggle/working được giữ lại sau khi chạy xong.
-    # Mặc định: runs/<model>_<ratio>p_s<seed>
+    # Output folder. On Kaggle only /kaggle/working is kept after the run.
+    # Default: runs/<model>_<ratio>p_s<seed>
     ap.add_argument("--out_dir", default="")
-    # Tiếp tục huấn luyện từ last.pth (khi phiên Kaggle bị ngắt).
+    # Resume from last.pth (e.g. after a Kaggle session was interrupted).
     ap.add_argument("--resume", action="store_true")
-    # Chỉ đánh giá trên tập test với checkpoint cho sẵn, không huấn luyện.
+    # Only evaluate a given checkpoint on the test set, no training.
     ap.add_argument("--eval_only", action="store_true")
     ap.add_argument("--ckpt", default="")
     return ap.parse_args()
@@ -96,7 +96,7 @@ def get_args():
 
 @torch.no_grad()
 def evaluate(model, loader, device, full_metrics=False):
-    """Trả về (Dice trung bình, danh sách chỉ số theo từng ảnh)."""
+    """Return (mean Dice, list of per-image metrics)."""
     model.eval()
     rows = []
     for batch in loader:
@@ -106,7 +106,7 @@ def evaluate(model, loader, device, full_metrics=False):
         for p, g, n in zip(pred, gt, batch["name"]):
             if full_metrics:
                 m = binary_metrics(p == 1, g == 1)
-            else:  # validation: chỉ tính Dice cho nhanh
+            else:  # validation: Dice only, for speed
                 inter = np.logical_and(p == 1, g == 1).sum()
                 s = (p == 1).sum() + (g == 1).sum()
                 m = {"dsc": 1.0 if s == 0 else 2.0 * inter / s}
@@ -127,13 +127,13 @@ def run_test(model, args, device, out_dir):
         w = csv.DictWriter(f, fieldnames=["name"] + keys)
         w.writeheader()
         w.writerows(rows)
-    # DSC, Jaccard nhân 100 (%) để khớp cách trình bày trong bài báo; HD95, ASD theo pixel.
+    # DSC and Jaccard x100 (%) to match the paper's tables; HD95 and ASD in pixels.
     summary = {}
     for k in keys:
         v = np.array([r[k] for r in rows]) * (100 if k in ("dsc", "jaccard") else 1)
         summary[k] = {"mean": float(v.mean()), "std": float(v.std())}
     (out_dir / "test_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print("\n===== KẾT QUẢ TẬP TEST =====")
+    print("\n===== TEST RESULTS =====")
     for k in keys:
         print(f"{k.upper():8s}: {summary[k]['mean']:.2f} ({summary[k]['std']:.2f})")
     return summary
@@ -151,7 +151,7 @@ def main():
                         pretrained=args.pretrained if (args.model == "swin_unet" and not args.eval_only) else "",
                         unext_variant=args.unext_variant)
     model.to(device)
-    print(f"Mô hình {args.model}: {count_params(model):.2f}M tham số | thiết bị: {device}")
+    print(f"Model {args.model}: {count_params(model):.2f}M params | device: {device}")
 
     if args.eval_only:
         ckpt = torch.load(args.ckpt or out_dir / "best.pth", map_location=device)
@@ -161,22 +161,22 @@ def main():
 
     (out_dir / "config.json").write_text(json.dumps(vars(args), indent=2), encoding="utf-8")
 
-    # ---- Dữ liệu ----
+    # ---- Data ----
     split = Path(args.split_dir)
     train_names = read_list(split / ("train.txt" if args.labeled_ratio == 100
                                      else f"labeled_{args.labeled_ratio}.txt"))
     val_names = read_list(split / "val.txt")
-    print(f"Ảnh huấn luyện có nhãn: {len(train_names)} | validation: {len(val_names)}")
+    print(f"Labeled training images: {len(train_names)} | validation: {len(val_names)}")
     train_ds = BloodCellDataset(args.data_dir, train_names, train_transform(args.img_size))
     val_ds = BloodCellDataset(args.data_dir, val_names, eval_transform(args.img_size))
     g = torch.Generator()
     g.manual_seed(args.seed)
     train_loader = DataLoader(train_ds, batch_size=min(args.batch_size, len(train_ds)), shuffle=True,
-                              num_workers=args.num_workers, pin_memory=True, drop_last=True,
-                              generator=g, persistent_workers=args.num_workers > 0)
+                              num_workers=args.num_workers, pin_memory=device.type == "cuda",
+                              drop_last=True, generator=g, persistent_workers=args.num_workers > 0)
     val_loader = DataLoader(val_ds, batch_size=8, shuffle=False, num_workers=args.num_workers)
 
-    # ---- Tối ưu ----
+    # ---- Optimization ----
     optimizer = torch.optim.SGD(model.parameters(), lr=args.base_lr,
                                 momentum=args.momentum, weight_decay=args.weight_decay)
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
@@ -189,14 +189,14 @@ def main():
         optimizer.load_state_dict(ck["optimizer"])
         scaler.load_state_dict(ck["scaler"])
         start_it, best_dice = ck["iter"], ck["best_dice"]
-        print(f"Tiếp tục từ vòng lặp {start_it} (best Dice = {best_dice:.4f})")
+        print(f"Resuming from iteration {start_it} (best Dice = {best_dice:.4f})")
 
     log_f = open(out_dir / "log.csv", "a", newline="", encoding="utf-8")
     log = csv.writer(log_f)
     if start_it == 0:
         log.writerow(["iter", "lr", "loss", "val_dice"])
 
-    # ---- Vòng huấn luyện ----
+    # ---- Training loop ----
     model.train()
     data_iter = infinite_loader(train_loader)
     t0, running = time.time(), 0.0
@@ -211,7 +211,7 @@ def main():
 
         with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=use_amp):
             logits = model(img)
-        # Tính loss ở FP32 cho ổn định. L_sup = Cross-Entropy + Dice (giống DACL).
+        # Loss in FP32 for stability. L_sup = Cross-Entropy + Dice (as in DACL).
         loss = ce_dice(logits.float(), mask, dice_loss)
 
         optimizer.zero_grad(set_to_none=True)
@@ -242,7 +242,7 @@ def main():
                        out_dir / "last.pth")
     log_f.close()
 
-    # ---- Đánh giá tập test bằng checkpoint tốt nhất ----
+    # ---- Test-set evaluation with the best checkpoint ----
     model.load_state_dict(torch.load(out_dir / "best.pth", map_location=device)["model"])
     run_test(model, args, device, out_dir)
 
