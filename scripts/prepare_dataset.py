@@ -1,16 +1,18 @@
 """Normalize the Blood Cell Segmentation dataset (Depto et al., 2021) into a single layout.
 
-Original dataset: 1600x1200 images; images and masks are paired by name
-(e.g. ``123_image.png`` and ``123_mask.jpg``, either in one folder or in two
-separate folders). Masks are stored as JPG, so they contain compression noise
-and must be thresholded.
+Expected layout (as on Kaggle):
+    bloodcell_dataset/
+      ├── Original/   microscopy images
+      └── Mask/       ground-truth masks, paired with images by file name
+Extensions and suffixes such as ``_mask`` are ignored when matching names.
+Masks may be stored as JPG (compression noise), so they are thresholded.
 
 Output:
     <out>/images/<id>.png   resized RGB image
     <out>/masks/<id>.png    resized binary mask (0/255)
 
 Usage (Kaggle):
-    python scripts/prepare_dataset.py --raw /kaggle/input/<dataset-name> --out /kaggle/working/data/processed
+    python scripts/prepare_dataset.py --raw /kaggle/input/bloodcell/bloodcell_dataset --out /kaggle/working/data/processed
 """
 import argparse
 import re
@@ -22,28 +24,21 @@ from tqdm import tqdm
 
 EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 
-# ---------------------------- CONFIG ----------------------------
-# Keywords identifying a mask file (in the file name or the parent folder name).
-MASK_WORDS = ("mask", "gt", "label", "ground")
 # Suffixes stripped from file names to obtain the image <-> mask pairing key.
 # Example: "123_image" and "123_mask" both give the key "123".
 SUFFIX_RE = re.compile(r"[ _\-]?(mask|masks|gt|label|labels|image|images|img|original)$", re.I)
-# ----------------------------------------------------------------
 
 
-def is_mask(path: Path) -> bool:
-    name = path.stem.lower()
-    parent = path.parent.name.lower()
-    return any(w in name for w in MASK_WORDS) or any(w in parent for w in MASK_WORDS)
-
-
-def key_of(path: Path) -> str:
-    return SUFFIX_RE.sub("", path.stem).strip().lower()
+def index_folder(folder: Path) -> dict:
+    files = sorted(p for p in folder.rglob("*") if p.suffix.lower() in EXTS)
+    return {SUFFIX_RE.sub("", p.stem).strip().lower(): p for p in files}
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--raw", required=True, help="raw dataset folder (scanned recursively)")
+    ap.add_argument("--raw", required=True, help="folder containing the image and mask sub-folders")
+    ap.add_argument("--image_subdir", default="Original")
+    ap.add_argument("--mask_subdir", default="Mask")
     ap.add_argument("--out", default="data/processed")
     # Saved size (width x height). Keeps the 4:3 aspect ratio of the 1600x1200 originals.
     # Resizing once up front makes the Kaggle DataLoader much faster than decoding
@@ -55,19 +50,20 @@ def main():
     ap.add_argument("--threshold", type=int, default=127)
     args = ap.parse_args()
 
-    files = [p for p in Path(args.raw).rglob("*") if p.suffix.lower() in EXTS]
-    images, masks = {}, {}
-    for p in files:
-        (masks if is_mask(p) else images)[key_of(p)] = p
+    raw = Path(args.raw)
+    images = index_folder(raw / args.image_subdir)
+    masks = index_folder(raw / args.mask_subdir)
 
     keys = sorted(set(images) & set(masks))
     print(f"Found {len(images)} images, {len(masks)} masks -> {len(keys)} pairs")
     if len(images) - len(keys):
-        print("  Images without a mask (examples):", sorted(set(images) - set(masks))[:5])
+        print("  Images without a mask (examples):", [images[k].name for k in sorted(set(images) - set(masks))[:5]])
     if len(masks) - len(keys):
-        print("  Masks without an image (examples):", sorted(set(masks) - set(images))[:5])
+        print("  Masks without an image (examples):", [masks[k].name for k in sorted(set(masks) - set(images))[:5]])
     if not keys:
-        raise SystemExit("No pairs found - run inspect_dataset.py to check the file naming.")
+        raise SystemExit("No pairs found - the file names in the two folders do not match.")
+    for k in keys[:3]:
+        print(f"  pair: {images[k].name}  <->  {masks[k].name}")
 
     out_img = Path(args.out) / "images"
     out_msk = Path(args.out) / "masks"
