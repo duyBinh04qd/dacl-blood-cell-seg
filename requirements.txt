@@ -1,0 +1,12 @@
+torch>=2.1
+torchvision>=0.16
+timm>=0.9
+numpy
+opencv-python
+Pillow
+albumentations
+medpy
+scipy
+scikit-image
+tqdm
+tensorboard

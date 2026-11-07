@@ -1,0 +1,365 @@
+% =====================================================================
+%  ĐỀ CƯƠNG ĐỒ ÁN KHOA HỌC
+%  Nghiên cứu và ứng dụng mô hình Dual Agreement Consistency Learning
+%  cho bài toán phân đoạn tế bào máu trong ảnh hiển vi
+%  Biên dịch: pdfLaTeX (Overleaf: Menu -> Compiler -> pdfLaTeX)
+% =====================================================================
+\documentclass[12pt,a4paper]{article}
+
+% ---------- Tiếng Việt ----------
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{lmodern}
+
+% ---------- Trình bày ----------
+\usepackage[left=3cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}\onehalfspacing
+\usepackage{indentfirst}
+\setlength{\parindent}{1cm}
+\setlength{\parskip}{4pt}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+
+% ---------- Toán, bảng, hình ----------
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,tabularx,multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Lsup}{\mathcal{L}_{\mathrm{sup}}}
+\newcommand{\Lcps}{\mathcal{L}_{\mathrm{cps}}}
+\newcommand{\Lict}{\mathcal{L}_{\mathrm{ict}}}
+\newcommand{\Ldac}{\mathcal{L}_{\mathrm{dac}}}
+\newcommand{\Lkl}{\mathcal{L}_{\mathrm{KL}}}
+\newcommand{\Lent}{\mathcal{L}_{\mathrm{ent}}}
+
+% =====================================================================
+\begin{document}
+
+% ---------------------------- TRANG BÌA -----------------------------
+\begin{titlepage}
+  \centering
+  {\large \textbf{TRƯỜNG ĐẠI HỌC \underline{\hspace{6cm}}}}\\[2pt]
+  {\large \textbf{KHOA \underline{\hspace{6cm}}}}\\[2.5cm]
+
+  {\Large \textbf{ĐỀ CƯƠNG ĐỒ ÁN KHOA HỌC}}\\[1.5cm]
+
+  {\LARGE \textbf{NGHIÊN CỨU VÀ ỨNG DỤNG MÔ HÌNH\\[4pt]
+  ``DUAL AGREEMENT CONSISTENCY LEARNING''\\[4pt]
+  CHO BÀI TOÁN PHÂN ĐOẠN TẾ BÀO MÁU\\[4pt]
+  TRONG ẢNH HIỂN VI}}\\[3cm]
+
+  \begin{tabular}{ll}
+    Sinh viên thực hiện: & \underline{\hspace{6cm}} \\[4pt]
+    Mã số sinh viên:     & \underline{\hspace{6cm}} \\[4pt]
+    Lớp:                 & \underline{\hspace{6cm}} \\[4pt]
+    Giảng viên hướng dẫn:& \underline{\hspace{6cm}} \\
+  \end{tabular}
+
+  \vfill
+  {\large \underline{\hspace{2.5cm}}, tháng \underline{\hspace{1cm}} năm 2026}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Tính cấp thiết của đề tài}
+
+Phân tích ảnh hiển vi tiêu bản máu ngoại vi là xét nghiệm cơ bản trong huyết học,
+phục vụ đếm tế bào, phát hiện bất thường hình thái hồng cầu, phân loại bạch cầu và
+sàng lọc các bệnh như thiếu máu, sốt rét hay bạch cầu cấp. Bước \emph{phân đoạn}
+(segmentation) -- tách chính xác vùng tế bào khỏi nền -- là tiền đề cho mọi phân tích
+định lượng phía sau. Khi thực hiện thủ công, công việc này tốn thời gian và phụ thuộc
+vào kinh nghiệm của kỹ thuật viên.
+
+Các mô hình học sâu như U-Net~\cite{ronneberger2015unet} đã đạt kết quả tốt trên bài
+toán này~\cite{depto2021blood}, nhưng đòi hỏi lượng lớn mặt nạ (mask) được gán nhãn ở mức
+điểm ảnh, vốn đắt đỏ và cần chuyên gia. Học bán giám sát (Semi-Supervised Learning, SSL)
+cho phép khai thác thêm ảnh \emph{không nhãn} -- nguồn dữ liệu rất dồi dào trong phòng
+xét nghiệm -- để giảm chi phí gán nhãn.
+
+Mô hình \textbf{Dual Agreement Consistency Learning (DACL)}~\cite{wang2026dacl} là một
+khung SSL mới (2026), huấn luyện đồng thời một mạng CNN siêu nhẹ (UNeXt, 1{,}47 triệu
+tham số) và một mạng Transformer (Swin-Unet), kết hợp giám sát giả chéo, nhất quán nội
+suy và \emph{hàm mất mát đồng thuận kép}. Trên ảnh siêu âm thai, DACL vượt các phương
+pháp SSL gần đây khi chỉ có 5\% dữ liệu có nhãn. Tuy nhiên, DACL chưa được kiểm chứng
+trên ảnh hiển vi -- miền dữ liệu có đặc trưng rất khác: ảnh màu nhuộm, nhiều đối tượng
+nhỏ trong một ảnh, tế bào chồng lấn và chạm nhau. Đề tài này nhằm lấp khoảng trống đó.
+
+% =====================================================================
+\section{Mục tiêu nghiên cứu}
+
+\subsection{Mục tiêu tổng quát}
+Nghiên cứu, cài đặt và điều chỉnh mô hình DACL cho bài toán phân đoạn tế bào máu trong
+ảnh hiển vi trong điều kiện khan hiếm nhãn, hướng tới một mô hình nhẹ có thể triển khai
+trên thiết bị phổ thông.
+
+\subsection{Mục tiêu cụ thể}
+\begin{enumerate}
+  \item Tìm hiểu cơ sở lý thuyết của học bán giám sát cho phân đoạn ảnh y tế: Mean Teacher,
+        Cross Pseudo Supervision (CPS), Interpolation Consistency Training (ICT) và DACL.
+  \item Cài đặt lại DACL bằng PyTorch và áp dụng trên bộ dữ liệu
+        \emph{Blood Cell Segmentation}~\cite{depto2021blood}.
+  \item Đánh giá DACL với 5\%, 10\%, 20\% dữ liệu có nhãn; so sánh với học có giám sát
+        và các phương pháp SSL tiêu biểu.
+  \item Thực hiện nghiên cứu cắt bỏ (ablation) từng thành phần mất mát; phân tích và đề
+        xuất cải tiến thành phần đồng thuận kép.
+  \item Xây dựng ứng dụng minh họa: tải ảnh lên, trả về mặt nạ phân đoạn và số lượng tế bào.
+\end{enumerate}
+
+% =====================================================================
+\section{Đối tượng và phạm vi nghiên cứu}
+
+\begin{itemize}
+  \item \textbf{Đối tượng:} các phương pháp học bán giám sát cho phân đoạn ảnh, trọng tâm
+        là DACL; ảnh hiển vi quang học tiêu bản máu ngoại vi nhuộm màu.
+  \item \textbf{Phạm vi:} phân đoạn ngữ nghĩa 2D (tế bào/nền); tách và đếm tế bào bằng hậu
+        xử lý. Không bao gồm phân loại chi tiết các dòng bạch cầu và không triển khai lâm sàng.
+\end{itemize}
+
+% =====================================================================
+\section{Tổng quan về mô hình DACL}
+
+\subsection{Kiến trúc}
+DACL gồm ba mạng (Hình~\ref{fig:dacl}):
+\begin{itemize}
+  \item $f^1_\theta$ -- \textbf{UNeXt}~\cite{valanarasu2022unext}: CNN kết hợp MLP, số kênh
+        bộ mã hóa $\{32,64,128,160,256\}$, 1{,}47M tham số, 7{,}03 GFLOPs. Đây là mô hình
+        \emph{duy nhất được dùng khi suy luận}.
+  \item $f^2_\phi$ -- \textbf{Swin-Unet tiny}~\cite{cao2022swinunet}: Transformer, 27{,}15M
+        tham số, khởi tạo từ trọng số tiền huấn luyện, cửa sổ dịch chuyển kích thước 7.
+  \item $f^{\mathrm{ema}}_{\bar\phi}$ -- \textbf{giáo viên EMA}: trung bình trượt mũ của
+        tham số $\phi$, theo Mean Teacher~\cite{tarvainen2017mt}.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm and 14mm,
+  data/.style={draw,rounded corners,fill=gray!12,minimum width=24mm,minimum height=8mm,align=center,font=\small},
+  net/.style={draw,thick,rounded corners,minimum width=26mm,minimum height=9mm,align=center,font=\small},
+  loss/.style={draw,dashed,red!70!black,rounded corners,align=center,font=\small,inner sep=4pt},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+  \node[data] (xl) {Ảnh có nhãn\\$X_L, Y_{gt}$};
+  \node[data,below=14mm of xl] (xu) {Ảnh không nhãn\\$X_{UL}$};
+  \node[data,below=10mm of xu] (xm) {Mixup\\$\hat X_{UL}$};
+
+  \node[net,fill=blue!10,right=of xl] (cnn) {UNeXt $f^1_\theta$\\(CNN nhẹ)};
+  \node[net,fill=orange!15,right=of xu] (tr) {Swin-Unet $f^2_\phi$\\(Transformer)};
+  \node[net,fill=orange!5,right=of xm] (ema) {Giáo viên EMA\\$f^{\mathrm{ema}}_{\bar\phi}$};
+
+  \draw[arr] (xl) -- (cnn);
+  \draw[arr] (xu) -- (tr);
+  \draw[arr] (xu.north east) -- (cnn.south west);
+  \draw[arr] (xu) -- (xm);
+  \draw[arr] (xm.north east) -- (tr.south west);
+  \draw[arr] (xu.south east) -- (ema.north west);
+  \draw[arr,dotted] (tr) -- node[right,font=\scriptsize]{EMA} (ema);
+
+  \node[loss,right=16mm of cnn] (lsup) {$\Lsup$\\(CE + Dice)};
+  \node[loss,right=16mm of tr]  (lcps) {$\Lcps$ \;\&\; $\Ldac$};
+  \node[loss,right=16mm of ema] (lict) {$\Lict$\\(MSE)};
+
+  \draw[arr] (cnn) -- (lsup);
+  \draw[arr] (cnn.south east) -- (lcps.north west);
+  \draw[arr] (tr) -- (lcps);
+  \draw[arr] (ema) -- (lict);
+  \draw[arr] (tr.south east) -- (lict.north west);
+\end{tikzpicture}
+\caption{Sơ đồ tổng quát khung DACL (vẽ lại theo~\cite{wang2026dacl}). Đường nét đứt màu
+đỏ là các hàm mất mát.}
+\label{fig:dacl}
+\end{figure}
+
+\subsection{Giám sát giả chéo (CPS)}
+Với ảnh không nhãn $X_{UL}$, mỗi mạng sinh nhãn giả one-hot
+$\tilde Y^1=f_{OH}\big(f^1_\theta(X_{UL})\big)$, $\tilde Y^2=f_{OH}\big(f^2_\phi(X_{UL})\big)$
+(không lan truyền gradient qua nhãn giả) để giám sát mạng còn lại~\cite{chen2021cps}:
+\begin{align}
+  \mathcal{L}^1_{\mathrm{cps}} &= H\big(f^1_\theta(X_{UL}),\tilde Y^2\big) + D\big(f^1_\theta(X_{UL}),\tilde Y^2\big),\\
+  \mathcal{L}^2_{\mathrm{cps}} &= H\big(f^2_\phi(X_{UL}),\tilde Y^1\big) + D\big(f^2_\phi(X_{UL}),\tilde Y^1\big),
+\end{align}
+trong đó $H$ là cross-entropy và $D$ là Dice loss.
+
+\subsection{Nhất quán nội suy (ICT)}
+Với $\hat X_{UL}=\mathrm{Mix}(X^i_{UL},X^j_{UL})$ (hệ số trộn $\sigma=0{,}5$), mạng
+Transformer được ép khớp với phép trộn tương ứng của các dự đoán từ giáo viên
+EMA~\cite{verma2022ict}:
+\begin{equation}
+  \Lict=\sum\Big(f^2_\phi(\hat X_{UL})-\mathrm{Mix}\big(f^{\mathrm{ema}}_{\bar\phi}(X^i_{UL}),
+  f^{\mathrm{ema}}_{\bar\phi}(X^j_{UL})\big)\Big)^2 .
+\end{equation}
+
+\subsection{Đồng thuận kép (DAC) -- đóng góp chính của DACL}
+Gọi $p(u)$, $q(u)$ là phân phối lớp tại điểm ảnh $u$ do $f^1_\theta$ và $f^2_\phi$ dự đoán:
+\begin{align}
+  \Lkl  &= \mathbb{E}\Big[\tfrac{1}{HW}\textstyle\sum_u \mathrm{KL}\big(p(u)\,\|\,q(u)\big)\Big],\\
+  \Lent &= \mathbb{E}\Big[\tfrac{1}{HW}\textstyle\sum_u
+           H\big(p(u)\big)+H\big(q(u)\big)-H\big(\tfrac{p(u)+q(u)}{2}\big)\Big],\\
+  \Ldac &= \Lkl + \Lent .
+\end{align}
+
+\paragraph{Nhận xét phân tích.} Vì độ phân kỳ Jensen--Shannon
+$\mathrm{JSD}(p,q)=H\big(\tfrac{p+q}{2}\big)-\tfrac12\big[H(p)+H(q)\big]$, ta có
+\begin{equation}
+  H(p)+H(q)-H\big(\tfrac{p+q}{2}\big)=\tfrac12\big[H(p)+H(q)\big]-\mathrm{JSD}(p,q).
+\end{equation}
+Như vậy $\Lent$ vừa khuyến khích dự đoán \emph{tự tin} (entropy thấp), vừa có xu hướng
+\emph{tăng} độ khác biệt JSD giữa hai mạng; số hạng $\Lkl$ đóng vai trò đối trọng. Đề tài
+sẽ khảo sát thực nghiệm các biến thể thay thế (mục~\ref{sec:improve}).
+
+\subsection{Hàm mục tiêu tổng}
+\begin{equation}
+  \mathcal{L}_{\mathrm{total}}=\big(\mathcal{L}^1_{\mathrm{sup}}+\mathcal{L}^2_{\mathrm{sup}}\big)
+  +\lambda\big(\mathcal{L}^1_{\mathrm{cps}}+\mathcal{L}^2_{\mathrm{cps}}\big)
+  +\tau\,\Lict+\beta\,\Ldac ,
+\end{equation}
+với $\{\lambda,\tau,\beta\}=\{2{,}0;\,2{,}0;\,10{,}0\}$ theo bài báo gốc;
+$\mathcal{L}_{\mathrm{sup}}$ là tổng CE và Dice trên dữ liệu có nhãn.
+
+% =====================================================================
+\section{Dữ liệu}
+
+\subsection{Bộ dữ liệu Blood Cell Segmentation}
+Đề tài sử dụng bộ dữ liệu công bố kèm công trình của Depto và cộng sự~\cite{depto2021blood}
+(kho mã: \url{https://github.com/Deponker/Blood-cell-segmentation}), được giới thiệu là
+bộ dữ liệu phân đoạn tế bào máu hiển vi lớn nhất tại thời điểm công bố:
+\begin{itemize}
+  \item 1\,328 ảnh hiển vi tiêu bản máu gốc và 1\,328 mặt nạ ground truth tương ứng
+        (tổng 2\,656 tệp);
+  \item kho mã được phát hành theo giấy phép MIT; dữ liệu tải qua liên kết Google Drive
+        trong README;
+  \item độ phân giải ảnh, định dạng tệp và cách mã hóa nhãn trong mặt nạ sẽ được kiểm tra
+        bằng script \texttt{scripts/inspect\_dataset.py} sau khi tải về
+        (\textit{dự kiến: mặt nạ nhị phân tế bào/nền}).
+\end{itemize}
+
+\subsection{Phân chia dữ liệu}
+Dữ liệu được chia ngẫu nhiên, cố định hạt giống (seed) theo tỉ lệ 70/10/20
+(Bảng~\ref{tab:split}). Từ tập huấn luyện, chỉ giữ nhãn cho 5\%, 10\%, 20\% ảnh; phần
+còn lại được coi là ảnh không nhãn.
+
+\begin{table}[ht]
+\centering
+\caption{Phân chia dữ liệu dự kiến.}
+\label{tab:split}
+\begin{tabular}{lcccc}
+\toprule
+Tập & Số ảnh & 5\% nhãn & 10\% nhãn & 20\% nhãn \\
+\midrule
+Huấn luyện (có nhãn / không nhãn) & 930 & 46 / 884 & 93 / 837 & 186 / 744 \\
+Kiểm định (validation)            & 133 & \multicolumn{3}{c}{133} \\
+Kiểm thử (test)                   & 265 & \multicolumn{3}{c}{265} \\
+\midrule
+Tổng                              & 1\,328 & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Tiền xử lý và tăng cường}
+\begin{itemize}
+  \item Đưa ảnh về $224\times224$ (tương thích cửa sổ 7 của Swin-Unet; có thể thử
+        $448\times448$ nếu đủ tài nguyên), chuẩn hóa theo thống kê ImageNet.
+  \item Tăng cường cho ảnh có nhãn: lật, xoay $90^\circ$, co giãn ngẫu nhiên, thay đổi
+        độ sáng/tương phản/màu (color jitter) để mô phỏng khác biệt nhuộm.
+  \item Tùy chọn: chuẩn hóa màu nhuộm (Macenko/Reinhard).
+\end{itemize}
+
+% =====================================================================
+\section{Phương pháp thực hiện}
+
+\subsection{Các điều chỉnh của DACL cho ảnh hiển vi}
+\begin{enumerate}
+  \item \textbf{Đầu ra:} số lớp $C$ theo nhãn thực tế của bộ dữ liệu (dự kiến $C=2$).
+  \item \textbf{Tách tế bào chạm nhau:} hậu xử lý bằng biến đổi khoảng cách và
+        watershed để tách từng tế bào, phục vụ đếm.
+  \item \textbf{Đơn vị đo:} HD95 và ASD tính theo điểm ảnh (không có thông tin
+        kích thước vật lý của điểm ảnh).
+  \item \textbf{Siêu tham số:} khảo sát lại $\beta\in\{1,5,10\}$ và lịch tăng dần
+        (ramp-up) trọng số các mất mát không giám sát.
+\end{enumerate}
+
+\subsection{Đề xuất cải tiến thành phần đồng thuận}\label{sec:improve}
+\begin{itemize}
+  \item \textbf{DAC-sym:} thay $\mathrm{KL}(p\|q)$ bằng KL đối xứng hoặc JSD.
+  \item \textbf{DAC-ent:} chỉ giữ phần entropy $\tfrac12[H(p)+H(q)]$, bỏ $-\mathrm{JSD}$.
+  \item \textbf{DAC-conf:} chỉ tính DAC trên các điểm ảnh có độ tin cậy
+        $\max_c p_c(u) > \gamma$.
+\end{itemize}
+
+\subsection{Thiết lập thực nghiệm}
+\begin{itemize}
+  \item \textbf{Huấn luyện:} SGD, lr $=0{,}01$, momentum $0{,}9$, weight decay $10^{-4}$;
+        batch có nhãn 1 (hoặc 2), batch không nhãn 4; 200--400 epoch; lưu trọng số UNeXt
+        tốt nhất trên tập kiểm định.
+  \item \textbf{Phương pháp so sánh:} UNeXt và Swin-Unet học có giám sát (giới hạn
+        dưới/trên), Mean Teacher~\cite{tarvainen2017mt}, ICT~\cite{verma2022ict},
+        CPS~\cite{chen2021cps}, CTCT~\cite{luo2022ctct}, DACL và các biến thể đề xuất.
+  \item \textbf{Ablation:} Baseline $\rightarrow$ +$\Lcps$ $\rightarrow$
+        +$\Lcps$+$\Lict$ $\rightarrow$ +$\Lcps$+$\Ldac$ $\rightarrow$ đầy đủ.
+  \item \textbf{Chỉ số:} DSC, Jaccard (IoU), HD95, ASD; số tham số, GFLOPs, tốc độ
+        suy luận (FPS); sai số đếm tế bào (MAE). Kiểm định Wilcoxon cho ý nghĩa thống kê.
+\end{itemize}
+
+\subsection{Công cụ}
+Python, PyTorch, MONAI/MedPy (tính chỉ số), Albumentations; mã nguồn tham khảo SSL4MIS,
+UNeXt và Swin-Unet; quản lý mã nguồn bằng Git/GitHub; huấn luyện trên GPU cá nhân hoặc
+Google Colab/Kaggle.
+
+% =====================================================================
+\section{Kết quả dự kiến}
+\begin{itemize}
+  \item Mã nguồn DACL cho ảnh hiển vi tế bào máu, công khai trên GitHub.
+  \item Bảng so sánh định lượng và hình ảnh trực quan giữa các phương pháp ở các mức nhãn.
+  \item Mô hình UNeXt ($\approx$1{,}5M tham số) đạt chất lượng tiệm cận học có giám sát
+        đầy đủ khi chỉ dùng 10--20\% nhãn.
+  \item Ứng dụng minh họa phân đoạn và đếm tế bào.
+  \item Báo cáo đồ án và (nếu kết quả tốt) bài báo hội nghị trong nước.
+\end{itemize}
+
+% =====================================================================
+\section{Kế hoạch thực hiện}
+
+\begin{table}[ht]
+\centering
+\caption{Tiến độ dự kiến (16 tuần).}
+\begin{tabularx}{\textwidth}{c X}
+\toprule
+Tuần & Nội dung công việc \\
+\midrule
+1--2   & Nghiên cứu tài liệu; tải, kiểm tra và phân chia bộ dữ liệu \\
+3--5   & Cài đặt và huấn luyện UNeXt, Swin-Unet có giám sát \\
+6--9   & Cài đặt DACL và các phương pháp SSL so sánh \\
+10--12 & Thực nghiệm ở các mức nhãn; ablation; thử các biến thể cải tiến \\
+13--14 & Hậu xử lý tách/đếm tế bào; xây dựng ứng dụng minh họa \\
+15--16 & Viết báo cáo, chuẩn bị bảo vệ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Bố cục dự kiến của báo cáo}
+\begin{enumerate}
+  \item[] \textbf{Mở đầu}
+  \item[] \textbf{Chương 1.} Tổng quan về ảnh hiển vi tế bào máu và bài toán phân đoạn
+  \item[] \textbf{Chương 2.} Cơ sở lý thuyết: mạng phân đoạn và học bán giám sát
+  \item[] \textbf{Chương 3.} Mô hình DACL và các điều chỉnh đề xuất
+  \item[] \textbf{Chương 4.} Thực nghiệm và đánh giá
+  \item[] \textbf{Chương 5.} Ứng dụng minh họa
+  \item[] \textbf{Kết luận và hướng phát triển}
+\end{enumerate}
+
+% =====================================================================
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}
