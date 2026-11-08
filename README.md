@@ -37,6 +37,10 @@ pip install -r requirements.txt
 | [notebooks/ssl-dct.ipynb](notebooks/ssl-dct.ipynb) | Deep Co-Training: two UNeXt networks (5/10% labels) |
 | [notebooks/ssl-cps.ipynb](notebooks/ssl-cps.ipynb) | Cross Pseudo Supervision: two UNeXt networks (5/10% labels) |
 | [notebooks/ssl-ict.ipynb](notebooks/ssl-ict.ipynb) | Interpolation Consistency Training: UNeXt student + EMA teacher (5/10% labels) |
+| [notebooks/ssl-ctct.ipynb](notebooks/ssl-ctct.ipynb) | Cross Teaching between CNN and Transformer: UNeXt + Swin-Unet (5/10% labels) |
+| [notebooks/ssl-pcpcs.ipynb](notebooks/ssl-pcpcs.ipynb) | Pixel-level contrastive + cross-supervised learning: UNeXt + Swin-Unet (5/10% labels) |
+| [notebooks/ssl-dstct.ipynb](notebooks/ssl-dstct.ipynb) | Dual student-teacher: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
+| [notebooks/ssl-lmct.ipynb](notebooks/ssl-lmct.ipynb) | Soft cross supervision between UNeXt and Swin-Unet (5/10% labels) |
 
 Each notebook covers: configuration → data preparation → **data augmentation** (configurable, with previews) →
 model → training → results table, training curves and prediction overlays.
