@@ -31,12 +31,16 @@ pip install -r requirements.txt
 
 | Notebook | Model |
 |---|---|
-| [notebooks/FS_UNeXt.ipynb](notebooks/FS_UNeXt.ipynb) | Fully supervised UNeXt |
-| [notebooks/FS_SwinUnet.ipynb](notebooks/FS_SwinUnet.ipynb) | Fully supervised Swin-Unet |
+| [notebooks/fs-unext.ipynb](notebooks/fs-unext.ipynb) | Fully supervised UNeXt (5/10/20/100% labels) |
+| [notebooks/fs-swinunet.ipynb](notebooks/fs-swinunet.ipynb) | Fully supervised Swin-Unet (5/10/20/100% labels) |
+| [notebooks/SSL_MT.ipynb](notebooks/SSL_MT.ipynb) | Mean Teacher: UNeXt student + EMA teacher (5/10% labels) |
+| [notebooks/SSL_DCT.ipynb](notebooks/SSL_DCT.ipynb) | Deep Co-Training: two UNeXt networks (5/10% labels) |
 
 Each notebook covers: configuration → data preparation → **data augmentation** (configurable, with previews) →
-model → training at 5/10/20/100% labels → results table, training curves and prediction overlays.
-Only `CFG.RAW_DIR` needs to point to your Kaggle Dataset.
+model → training → results table, training curves and prediction overlays.
+Only `CFG.RAW_DIR` needs to point to your Kaggle Dataset (`<dataset>/Original` + `<dataset>/Mask`).
+All notebooks share the same split (`SPLIT_SEED = 2026`), so the labeled / unlabeled / test sets are identical
+across methods. Semi-supervised notebooks use 1 labeled + 4 unlabeled images per iteration, as in the DACL paper.
 
 ### Local scripts
 
