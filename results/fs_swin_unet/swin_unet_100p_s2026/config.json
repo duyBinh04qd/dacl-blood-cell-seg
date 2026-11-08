@@ -1,0 +1,93 @@
+{
+  "RAW_DIR": "/kaggle/input/bloodcell/bloodcell_dataset",
+  "IMAGE_SUBDIR": "Original",
+  "MASK_SUBDIR": "Mask",
+  "WORK_DIR": "/kaggle/working",
+  "MODEL": "swin_unet",
+  "NUM_CLASSES": 2,
+  "PRETRAINED": "imagenet",
+  "DROP_PATH": 0.1,
+  "PREP_SIZE": [
+    640,
+    480
+  ],
+  "MASK_THRESHOLD": 127,
+  "IMG_SIZE": 224,
+  "SPLIT_RATIOS": [
+    0.7,
+    0.1,
+    0.2
+  ],
+  "SPLIT_SEED": 2026,
+  "LABELED_RATIOS": [
+    5,
+    10,
+    20,
+    100
+  ],
+  "MAX_ITERS": 30000,
+  "BATCH_SIZE": 8,
+  "BASE_LR": 0.01,
+  "MOMENTUM": 0.9,
+  "WEIGHT_DECAY": 0.0001,
+  "USE_AMP": true,
+  "NUM_WORKERS": 4,
+  "SEEDS": [
+    2026
+  ],
+  "VAL_INTERVAL": 500,
+  "LOG_INTERVAL": 100,
+  "DEBUG": false,
+  "AUG_LEVEL": "full",
+  "AUG_HFLIP_P": 0.5,
+  "AUG_VFLIP_P": 0.5,
+  "AUG_ROT90_P": 0.5,
+  "AUG_AFFINE_P": 0.5,
+  "AUG_SCALE": [
+    0.85,
+    1.15
+  ],
+  "AUG_ROTATE": [
+    -15,
+    15
+  ],
+  "AUG_TRANSLATE": [
+    -0.05,
+    0.05
+  ],
+  "AUG_ELASTIC_P": 0.2,
+  "AUG_ELASTIC_ALPHA": 30,
+  "AUG_ELASTIC_SIGMA": 6,
+  "AUG_COLOR_JITTER_P": 0.5,
+  "AUG_BRIGHTNESS": 0.2,
+  "AUG_CONTRAST": 0.2,
+  "AUG_SATURATION": 0.2,
+  "AUG_HUE": 0.05,
+  "AUG_HED_P": 0.5,
+  "AUG_HED_SIGMA": 0.05,
+  "AUG_HED_BIAS": 0.005,
+  "AUG_GAMMA_P": 0.2,
+  "AUG_GAMMA": [
+    80,
+    120
+  ],
+  "AUG_CLAHE_P": 0.1,
+  "AUG_BLUR_P": 0.1,
+  "AUG_NOISE_P": 0.1,
+  "AUG_NOISE_STD": [
+    0.01,
+    0.04
+  ],
+  "AUG_MEAN": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "AUG_STD": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "ratio": 100,
+  "seed": 2026
+}
