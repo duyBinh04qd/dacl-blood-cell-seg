@@ -41,6 +41,7 @@ pip install -r requirements.txt
 | [notebooks/ssl-pcpcs.ipynb](notebooks/ssl-pcpcs.ipynb) | Pixel-level contrastive + cross-supervised learning: UNeXt + Swin-Unet (5/10% labels) |
 | [notebooks/ssl-dstct.ipynb](notebooks/ssl-dstct.ipynb) | Dual student-teacher: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
 | [notebooks/ssl-lmct.ipynb](notebooks/ssl-lmct.ipynb) | Soft cross supervision between UNeXt and Swin-Unet (5/10% labels) |
+| [notebooks/ssl-dacl.ipynb](notebooks/ssl-dacl.ipynb) | **DACL**: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
 
 Each notebook covers: configuration → data preparation → **data augmentation** (configurable, with previews) →
 model → training → results table, training curves and prediction overlays.
