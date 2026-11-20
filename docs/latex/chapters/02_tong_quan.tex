@@ -1,0 +1,227 @@
+% =====================================================================
+\chapter{Tổng quan tài liệu và các nghiên cứu liên quan}
+\label{chap:tongquan}
+
+Chương này tổng hợp các tài liệu làm nền cho đề tài, gồm tám mục:
+\begin{enumerate}[label=(\arabic*)]
+  \item ảnh hiển vi tiêu bản máu và bài toán phân đoạn (mục~\ref{sec:lit-problem});
+  \item kiến trúc mạng phân đoạn dạng mã hóa--giải mã (mục~\ref{sec:lit-unet});
+  \item mạng UNeXt (mục~\ref{sec:lit-unext});
+  \item Swin Transformer và Swin-Unet (mục~\ref{sec:lit-swin});
+  \item các nguyên lý của học bán giám sát (mục~\ref{sec:ssl});
+  \item tám phương pháp bán giám sát được dùng làm đối chứng (mục~\ref{sec:baselines});
+  \item khung DACL (mục~\ref{sec:lit-dacl});
+  \item các hàm mất mát và độ đo đánh giá (mục~\ref{sec:metrics}).
+\end{enumerate}
+Mục cuối chương tóm tắt các điểm chính và khoảng trống mà đề tài hướng tới.
+
+\section{Ảnh hiển vi tiêu bản máu và bài toán phân đoạn}
+\label{sec:lit-problem}
+
+\subsection{Ảnh hiển vi tiêu bản máu ngoại vi}
+
+Tiêu bản máu ngoại vi được tạo bằng cách dàn một giọt máu thành lớp mỏng trên lam kính, sau đó nhuộm màu để làm nổi bật tế bào. Khi chụp qua kính hiển vi quang học, mỗi ảnh là một vi trường. Trong vi trường thường có hồng cầu chiếm đa số, xen lẫn một số bạch cầu và tiểu cầu. Màu sắc và độ tương phản của ảnh phụ thuộc vào nhiều yếu tố: thuốc nhuộm và thời gian nhuộm, độ dày lớp dàn máu, nguồn sáng, cảm biến máy ảnh và cách cân bằng trắng. Vì vậy, cùng một loại tế bào có thể mang màu khá khác nhau giữa các tiêu bản hoặc giữa các phòng xét nghiệm.
+
+Phân đoạn là bước trung gian giữa ảnh thô và các phép đo có ý nghĩa lâm sàng. Muốn đếm tế bào, đo diện tích, độ tròn hay kích thước hồng cầu, hoặc khoanh vùng để phân loại bạch cầu, trước hết phải biết vùng nào thuộc tế bào. Sai số ở bước phân đoạn truyền trực tiếp sang các phép đo phía sau. Chẳng hạn, hai tế bào bị gộp làm một sẽ làm sai số đếm, còn đường biên bị lấn ra nền sẽ làm sai diện tích đo được.
+
+\subsection{Phát biểu bài toán và các khó khăn đặc thù}
+
+Cho ảnh màu $x \in \mathbb{R}^{H\times W\times 3}$, bài toán phân đoạn ngữ nghĩa hai lớp yêu cầu xác định một mặt nạ $y \in \{0,1\}^{H\times W}$. Trong đó $y(u)=1$ khi điểm ảnh $u$ thuộc tế bào và $y(u)=0$ khi thuộc nền. Mô hình học sâu ước lượng phân phối xác suất lớp $p(u)$ tại từng điểm ảnh, và nhãn dự đoán là lớp có xác suất lớn nhất. Cách phát biểu này không phân biệt từng tế bào. Hai tế bào chạm nhau chỉ được tách ra nếu giữa chúng có ít nhất một dải điểm ảnh được dự đoán là nền. Bài toán tách từng đối tượng, gọi là phân đoạn thực thể, nằm ngoài phạm vi đề tài. Tuy nhiên, chất lượng phân đoạn ngữ nghĩa ở vùng tiếp giáp giữa các tế bào quyết định khả năng tách đối tượng ở bước hậu xử lý về sau.
+
+So với phân đoạn một cấu trúc giải phẫu lớn như trong ảnh siêu âm, bài toán này có ba khó khăn đặc thù. Thứ nhất, mỗi ảnh chứa nhiều đối tượng nhỏ. Do đó, tỷ lệ điểm ảnh nằm gần đường biên lớn, và sai lệch vài điểm ảnh ở biên của mọi tế bào cộng dồn thành sai số đáng kể. Thứ hai, ở những vùng dàn máu dày, tế bào chạm nhau hoặc xếp chồng lên nhau. Ranh giới giữa chúng chỉ là những khe nền rất mảnh, khó tái tạo khi ảnh bị thu nhỏ trước khi đưa vào mạng. Thứ ba, màu sắc và chất lượng ảnh biến thiên mạnh. Ngoài ra còn có cặn thuốc nhuộm và vùng bắt màu đậm không phải tế bào. Một mô hình học từ ít ảnh có nhãn dễ khớp quá mức với điều kiện màu của chính các ảnh đó. Mục~\ref{sec:dataset} cho thấy cả ba đặc điểm này đều hiện diện rõ trong bộ dữ liệu của đề tài.
+
+\subsection{Các hướng tiếp cận và nghiên cứu trên bộ dữ liệu}
+
+Các phương pháp phân đoạn tế bào máu có thể chia thành ba nhóm. Nhóm xử lý ảnh truyền thống dựa trên ngưỡng hóa, phát hiện biên và thuật toán watershed. Nhóm này không cần dữ liệu huấn luyện, nhưng nhạy với tham số và với sự thay đổi màu nhuộm. Nhóm học máy cổ điển, như phân cụm điểm ảnh, vẫn dựa trên đặc trưng màu do con người lựa chọn. Nhóm học sâu tự học đặc trưng từ dữ liệu có nhãn và hiện cho độ chính xác cao nhất. Depto và cộng sự, nhóm tác giả công bố bộ dữ liệu mà đề tài sử dụng, đã so sánh cả ba nhóm~\cite{depto2021blood}. Theo trang mã nguồn công bố, nhóm học sâu gồm U-Net, U-Net++, TernausNet, Attention U-Net, R2U-Net và Attention R2U-Net. Nhóm học máy gồm ngưỡng Otsu và phân cụm K-means. Nhóm xử lý ảnh gồm watershed có điều khiển bằng điểm đánh dấu và ngưỡng hóa cân bằng histogram~\cite{depto2021repo}. Các mô hình học sâu trong so sánh đó đều được huấn luyện có giám sát. Vì vậy, chúng chịu cùng một giới hạn: cần một tập mặt nạ gán nhãn đủ lớn. Đây là điểm xuất phát của hướng học bán giám sát được trình bày ở các mục sau.
+
+\section{Mạng phân đoạn dạng mã hóa--giải mã}
+\label{sec:lit-unet}
+
+Phần lớn các mạng phân đoạn ảnh y tế hiện nay kế thừa cấu trúc của U-Net~\cite{ronneberger2015unet}. Nhánh mã hóa giảm dần độ phân giải không gian và tăng số kênh, nhờ đó thu được đặc trưng có ngữ nghĩa cao nhưng mất thông tin vị trí chi tiết. Nhánh giải mã khôi phục dần độ phân giải để đưa ra dự đoán cho từng điểm ảnh. Điểm then chốt của U-Net là các kết nối tắt. Đặc trưng ở mỗi mức của nhánh mã hóa được ghép thẳng vào mức tương ứng của nhánh giải mã, giúp khôi phục chi tiết biên đã mất khi giảm độ phân giải. Với bài toán có nhiều đối tượng nhỏ và đường biên dày đặc như ảnh tế bào máu, kết nối tắt đặc biệt quan trọng vì phần lớn sai số nằm ở biên. Cả hai mạng trong DACL đều có dạng chữ U này. Chúng chỉ khác nhau ở cách trích xuất đặc trưng trong từng khối.
+
+\section{Mạng UNeXt}
+\label{sec:lit-unext}
+
+UNeXt được Valanarasu và Patel đề xuất nhằm phân đoạn ảnh y tế với chi phí tính toán thấp~\cite{valanarasu2022unext}. Mạng giữ cấu trúc chữ U nhưng chia nhánh mã hóa thành hai giai đoạn. Ba tầng đầu là khối tích chập thông thường, làm việc ở độ phân giải cao, nơi tích chập trích xuất đặc trưng cục bộ hiệu quả. Hai tầng sau, ở độ phân giải thấp, thay tích chập bằng khối MLP mã hóa token (tokenized MLP). Trong khối này, bản đồ đặc trưng được dịch chuyển theo chiều rộng hoặc chiều cao trước khi đi qua lớp MLP. Nhờ phép dịch, mỗi token tiếp nhận thông tin từ các vị trí lân cận mà không cần cơ chế tự chú ý tốn kém. Một lớp tích chập theo chiều sâu xen giữa các lớp MLP đảm nhiệm việc mã hóa thông tin vị trí. Nhánh giải mã đối xứng với nhánh mã hóa và cũng dùng kết nối tắt. Đề tài dùng cấu hình số kênh $\{32,64,128,160,256\}$ cho nhánh mã hóa, như trong khung DACL~\cite{wang2026dacl}. Số tham số và số phép tính của cấu hình này được trình bày ở mục~\ref{sec:complexity}.
+
+\section{Swin Transformer và Swin-Unet}
+\label{sec:lit-swin}
+
+Transformer dựa trên cơ chế tự chú ý~\cite{vaswani2017attention}: mỗi token được cập nhật bằng tổ hợp có trọng số của mọi token khác. Cơ chế này cho phép mô hình hóa quan hệ ở khoảng cách xa, nhưng chi phí tăng theo bình phương số token, nên không khả thi khi áp dụng trực tiếp lên ảnh độ phân giải cao. Swin Transformer giải quyết vấn đề bằng cách chỉ tính tự chú ý trong các cửa sổ cục bộ không chồng lấn, mỗi cửa sổ gồm $M\times M$ token~\cite{liu2021swin}. Giữa hai khối liên tiếp, lưới cửa sổ được dịch đi $\lfloor M/2\rfloor$ token để thông tin truyền được qua ranh giới cửa sổ. Sau mỗi giai đoạn, phép gộp token ghép bốn token kề nhau thành một, tạo ra biểu diễn phân cấp tương tự nhánh mã hóa của CNN. Chi phí tính toán nhờ đó chỉ tăng tuyến tính theo kích thước ảnh.
+
+Swin-Unet xây dựng cấu trúc chữ U hoàn toàn bằng các khối Swin Transformer~\cite{cao2022swinunet}. Ảnh được cắt thành các ô $4\times4$ và chiếu thành token 96 chiều. Nhánh mã hóa gồm ba giai đoạn với số chiều đặc trưng 96, 192 và 384, tiếp theo là tầng thắt cổ chai 768 chiều. Nhánh giải mã dùng phép mở rộng token, ngược với phép gộp, để tăng độ phân giải, và nhận kết nối tắt từ nhánh mã hóa. Đề tài dùng phiên bản \emph{tiny} với kích thước cửa sổ $M=7$, khởi tạo nhánh mã hóa từ trọng số Swin-T đã huấn luyện trên ImageNet-1K~\cite{deng2009imagenet}.
+
+Lý do ghép một CNN với một Transformer đã được Luo và cộng sự phân tích. CNN thiên về đặc trưng cục bộ, còn Transformer nắm bắt tốt hơn quan hệ ở khoảng cách xa. Vì vậy, hai loại mạng thường mắc lỗi ở những vị trí khác nhau, và dự đoán của mạng này có thể bổ khuyết cho mạng kia khi giám sát chéo~\cite{luo2022ctct}.
+
+\section{Học bán giám sát}
+\label{sec:ssl}
+
+\subsection{Bài toán và các giả định}
+
+Trong học bán giám sát cho phân đoạn, tập huấn luyện gồm tập có nhãn $\mathcal{D}_L=\{(x_i,y_i)\}_{i=1}^{N}$ và tập không nhãn $\mathcal{D}_U=\{u_j\}_{j=1}^{M}$, thường với $M\gg N$. Hàm mục tiêu có dạng chung
+\begin{equation}
+  \mathcal{L} = \Lsup(\mathcal{D}_L) + w(t)\,\mathcal{L}_{\mathrm{unsup}}(\mathcal{D}_U),
+  \label{eq:ssl}
+\end{equation}
+trong đó $\mathcal{L}_{\mathrm{unsup}}$ không dùng nhãn và $w(t)$ là trọng số có thể thay đổi theo vòng lặp $t$. Ảnh không nhãn chỉ hữu ích khi phân phối của chúng chứa thông tin về ranh giới quyết định. Điều này được phát biểu qua các giả định cơ bản~\cite{chapelle2006ssl,vanengelen2020survey}. Giả định trơn cho rằng hai điểm gần nhau trong vùng dữ liệu dày đặc nên có cùng nhãn. Giả định cụm, hay giả định mật độ thấp, cho rằng ranh giới quyết định nên đi qua vùng ít dữ liệu. Với ảnh tế bào máu, giả định cụm khá hợp lý ở cấp điểm ảnh, vì phần lớn điểm ảnh thuộc tế bào hoặc thuộc nền một cách rõ ràng. Ngược lại, giả định này yếu đi ở vùng tiếp giáp giữa các tế bào, nơi các khe nền mảnh mang ít tín hiệu thị giác.
+
+\subsection{Chính quy hóa nhất quán và mô hình giáo viên}
+
+Nhóm phương pháp chính quy hóa nhất quán buộc mô hình đưa ra dự đoán ổn định khi đầu vào hoặc tham số bị nhiễu. Theo giả định trơn, một dự đoán đúng không nên thay đổi trước những nhiễu không làm đổi nội dung ảnh. Mean Teacher~\cite{tarvainen2017mt} tạo mục tiêu nhất quán từ một mô hình giáo viên, có tham số là trung bình trượt hàm mũ của tham số mô hình học sinh: $\bar\theta \leftarrow \alpha\bar\theta + (1-\alpha)\theta$. Vì là trung bình theo thời gian, giáo viên dao động ít hơn học sinh và cho mục tiêu ổn định hơn.
+
+Ở đầu quá trình huấn luyện, dự đoán trên ảnh không nhãn gần như ngẫu nhiên, nên ép mô hình nhất quán với chúng có thể gây hại. Vì vậy, nhiều phương pháp tăng dần trọng số $w(t)$ theo hàm ramp-up dạng sigmoid $w(t)=w_{\max}\exp\!\big(-5(1-t/T)^2\big)$ với $t\le T$~\cite{laine2017temporal}. Trong mã nguồn bán giám sát phổ biến cho ảnh y tế SSL4MIS, trọng số nhất quán mặc định là $w_{\max}=0{,}1$ và cũng được tăng theo ramp-up~\cite{luo2020ssl4mis}.
+
+\subsection{Nhãn giả, cực tiểu hóa entropy và thiên lệch xác nhận}
+
+Một hướng khác là dùng chính dự đoán của mô hình trên ảnh không nhãn làm nhãn giả để huấn luyện tiếp. Grandvalet và Bengio chỉ ra rằng việc cực tiểu hóa entropy của dự đoán trên dữ liệu không nhãn đẩy ranh giới quyết định ra khỏi vùng dữ liệu dày đặc, tức là thực hiện giả định cụm~\cite{grandvalet2005entropy}. Huấn luyện bằng nhãn giả cứng (one-hot) có tác dụng tương tự. Mặt trái của cả hai cơ chế là thiên lệch xác nhận~\cite{arazo2020pseudo}. Nếu mô hình đã sai ở một vùng, nhãn giả sinh ra từ dự đoán sai sẽ củng cố chính lỗi đó. Rủi ro này càng lớn khi tập có nhãn nhỏ, vì tín hiệu giám sát thật không đủ mạnh để kéo mô hình trở lại.
+
+\subsection{Đồng huấn luyện với hai mạng}
+
+Để giảm thiên lệch xác nhận, nhóm phương pháp đồng huấn luyện dùng hai mạng sinh nhãn giả cho nhau thay vì cho chính mình. Khi hai mạng mắc lỗi ở những vị trí khác nhau, mỗi mạng có cơ hội được mạng kia sửa sai. Hiệu quả của cơ chế này phụ thuộc vào mức độ khác biệt giữa hai mạng. Nếu hai mạng hội tụ về cùng một lời giải, chúng sẽ củng cố lỗi của nhau giống như một mạng tự huấn luyện. Vì vậy, một số phương pháp chủ động duy trì sự khác biệt, bằng ví dụ đối kháng như DCT~\cite{qiao2018dct} hoặc bằng kiến trúc dị thể như các phương pháp CNN--Transformer~\cite{luo2022ctct}.
+
+\section{Các phương pháp học bán giám sát tiêu biểu}
+\label{sec:baselines}
+
+Đề tài chọn tám phương pháp bán giám sát tiêu biểu, công bố từ năm 2017 đến 2025, làm đối chứng. Tám phương pháp này đại diện cho ba hướng tiếp cận chính, từ một mạng với giáo viên EMA đến cặp mạng CNN--Transformer. Phần này trình bày ý tưởng của từng phương pháp. Cách cài đặt cụ thể trong đề tài được nêu ở mục~\ref{sec:baseline-impl}. Ký hiệu $p_i(\cdot)$ là bản đồ xác suất (softmax) của mạng thứ $i$, $\hat y_i=\arg\max p_i$ là nhãn giả cứng, và $u$ là ảnh không nhãn.
+
+\textbf{Nhóm dùng một mạng với giáo viên EMA.} Mean Teacher (MT)~\cite{tarvainen2017mt} buộc dự đoán của học sinh trên ảnh không nhãn gần với dự đoán của giáo viên trên cùng ảnh đã thêm nhiễu: $\mathcal{L}_{\mathrm{unsup}}=\|p_\theta(u)-p_{\bar\theta}(u+\epsilon)\|^2$. Interpolation Consistency Training (ICT)~\cite{verma2022ict} thay nhiễu cộng bằng phép nội suy mixup~\cite{zhang2018mixup}. Dự đoán của học sinh trên ảnh trộn $\mathrm{Mix}_\lambda(u_0,u_1)=\lambda u_0+(1-\lambda)u_1$ phải khớp với phép trộn tương ứng của hai dự đoán từ giáo viên:
+\begin{equation}
+  \mathcal{L}_{\mathrm{ict}}=\big\|p_\theta(\mathrm{Mix}_\lambda(u_0,u_1))-\mathrm{Mix}_\lambda\big(p_{\bar\theta}(u_0),p_{\bar\theta}(u_1)\big)\big\|^2 ,
+\end{equation}
+với $\lambda$ lấy ngẫu nhiên từ phân phối Beta. Ràng buộc này buộc mô hình hành xử tuyến tính giữa các mẫu, và gián tiếp đẩy ranh giới quyết định ra khỏi vùng có mật độ dữ liệu cao.
+
+\textbf{Nhóm dùng hai mạng cùng kiến trúc.} Deep Co-Training (DCT)~\cite{qiao2018dct} có hai thành phần. Thành phần đồng huấn luyện buộc hai mạng cùng dự đoán trên ảnh không nhãn, đo bằng độ phân kỳ Jensen--Shannon. Thành phần khác biệt góc nhìn yêu cầu mỗi mạng không bị đánh lừa bởi ví dụ đối kháng~\cite{goodfellow2015fgsm} được sinh ra để đánh lừa mạng kia. Thành phần thứ hai ngăn hai mạng sụp về cùng một lời giải. Cross Pseudo Supervision (CPS)~\cite{chen2021cps} dùng hai mạng khởi tạo khác nhau. Mỗi mạng được huấn luyện bằng nhãn giả cứng của mạng kia, không lan truyền gradient qua nhãn giả:
+\begin{equation}
+  \mathcal{L}_{\mathrm{cps}}=\ell\big(p_1(u),\hat y_2\big)+\ell\big(p_2(u),\hat y_1\big),
+  \label{eq:cps-generic}
+\end{equation}
+trong đó $\ell$ là hàm mất mát phân đoạn. Cấu trúc của CPS là nền tảng của thành phần giám sát chéo trong DACL.
+
+\textbf{Nhóm CNN--Transformer.} Phương pháp dạy chéo giữa CNN và Transformer (CTCT)~\cite{luo2022ctct} áp dụng giám sát chéo bằng nhãn giả cứng giữa một CNN và một Swin-Unet, với hàm mất mát Dice. PCPCS, viết tắt của học đối sánh và giám sát chéo ở cấp điểm ảnh, là cơ chế huấn luyện của Semi-Mamba-UNet~\cite{ma2024semimamba}. Ngoài giám sát chéo giữa một CNN và một mạng dựa trên Mamba, PCPCS thêm một thành phần đối sánh trên đầu ra đã chiếu của hai mạng. DSTCT~\cite{jiang2024dstct} dùng hai học sinh là một CNN và một ViT cùng một giáo viên EMA. Hai học sinh dạy nhau bằng cả nhãn giả cứng lẫn nhãn mềm đã làm sắc, đồng thời bị ràng buộc bởi thành phần chênh lệch độ quyết đoán giữa hai bộ phân lớp và thành phần nhất quán với giáo viên. LMCT~\cite{wang2025lmct} cũng ghép một CNN với một Transformer. Mỗi mạng học theo bản đồ xác suất mềm của mạng kia, kèm một thành phần đối sánh InfoNCE.
+
+Xét theo trình tự thời gian, các phương pháp này phát triển theo hai hướng. Hướng thứ nhất là thay đổi nguồn tạo mục tiêu: từ nhiễu đầu vào, sang nội suy, sang mạng thứ hai, rồi sang mạng thứ hai có kiến trúc khác. Hướng thứ hai là thay đổi dạng mục tiêu: từ nhãn cứng sang nhãn mềm, kèm các ràng buộc bổ sung về phân phối hoặc đặc trưng. DACL nằm ở điểm giao của hai hướng này.
+
+\section{Mô hình DACL}
+\label{sec:lit-dacl}
+
+DACL do Wang và cộng sự đề xuất~\cite{wang2026dacl}. Mục này trình bày kiến trúc và các hàm mất mát của khung, là cơ sở để đề tài xây dựng lại mô hình ở Chương~\ref{chap:phuongphap}.
+
+\subsection{Kiến trúc tổng thể}
+
+DACL gồm ba mạng (Hình~\ref{fig:dacl}). Mạng CNN $f^1_\theta$ là UNeXt, đồng thời là mạng duy nhất được giữ lại khi suy luận. Mạng Transformer $f^2_\phi$ là Swin-Unet, chỉ tham gia huấn luyện. Mạng giáo viên $f^{\mathrm{ema}}_{\bar\phi}$ có cùng kiến trúc Swin-Unet, với tham số $\bar\phi$ là trung bình trượt hàm mũ của $\phi$. Ảnh có nhãn được dùng để huấn luyện có giám sát cả hai mạng học sinh. Ảnh không nhãn tham gia vào ba ràng buộc: giám sát giả chéo giữa hai học sinh, nhất quán nội suy giữa Swin-Unet và giáo viên, và đồng thuận kép giữa hai học sinh. Thiết kế này nhằm chuyển tri thức từ mô hình Transformer dung lượng lớn sang mô hình CNN nhẹ, để có độ chính xác tốt với chi phí tính toán thấp.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm and 14mm,
+  data/.style={draw,rounded corners,fill=gray!12,minimum width=24mm,minimum height=8mm,align=center,font=\small},
+  net/.style={draw,thick,rounded corners,minimum width=26mm,minimum height=9mm,align=center,font=\small},
+  loss/.style={draw,dashed,red!70!black,rounded corners,align=center,font=\small,inner sep=4pt},
+  arr/.style={-{Stealth[length=2mm]},thick}
+]
+  \node[data] (xl) {Ảnh có nhãn\\$X_L, Y_{gt}$};
+  \node[data,below=14mm of xl] (xu) {Ảnh không nhãn\\$X_{UL}$};
+  \node[data,below=10mm of xu] (xm) {Mixup\\$\hat X_{UL}$};
+
+  \node[net,fill=blue!10,right=of xl] (cnn) {UNeXt $f^1_\theta$\\(CNN nhẹ)};
+  \node[net,fill=orange!15,right=of xu] (tr) {Swin-Unet $f^2_\phi$\\(Transformer)};
+  \node[net,fill=orange!5,right=of xm] (ema) {Giáo viên EMA\\$f^{\mathrm{ema}}_{\bar\phi}$};
+
+  \draw[arr] (xl) -- (cnn);
+  \draw[arr] (xu) -- (tr);
+  \draw[arr] (xu.north east) -- (cnn.south west);
+  \draw[arr] (xu) -- (xm);
+  \draw[arr] (xm.north east) -- (tr.south west);
+  \draw[arr] (xu.south east) -- (ema.north west);
+  \draw[arr,dotted] (tr) -- node[right,font=\scriptsize]{EMA} (ema);
+
+  \node[loss,right=16mm of cnn] (lsup) {$\Lsup$\\(CE + Dice)};
+  \node[loss,right=16mm of tr]  (lcps) {$\Lcps$ \;\&\; $\Ldac$};
+  \node[loss,right=16mm of ema] (lict) {$\Lict$\\(MSE)};
+
+  \draw[arr] (cnn) -- (lsup);
+  \draw[arr] (cnn.south east) -- (lcps.north west);
+  \draw[arr] (tr) -- (lcps);
+  \draw[arr] (ema) -- (lict);
+  \draw[arr] (tr.south east) -- (lict.north west);
+\end{tikzpicture}
+\caption{Sơ đồ tổng quát khung DACL, vẽ lại theo~\cite{wang2026dacl}. Khung nét đứt màu đỏ là các hàm mất mát. Ảnh có nhãn cũng được đưa qua Swin-Unet để tính $\mathcal{L}^2_{\mathrm{sup}}$; mũi tên này được lược bỏ cho gọn.}
+\label{fig:dacl}
+\end{figure}
+
+\subsection{Giám sát giả chéo giữa CNN và Transformer}
+
+Với ảnh không nhãn $X_{UL}$, mỗi mạng sinh nhãn giả one-hot $\tilde Y^1=f_{OH}\big(f^1_\theta(X_{UL})\big)$ và $\tilde Y^2=f_{OH}\big(f^2_\phi(X_{UL})\big)$. Gradient không được lan truyền qua nhãn giả, và mỗi mạng được giám sát bằng nhãn giả của mạng kia:
+\begin{align}
+  \mathcal{L}^1_{\mathrm{cps}} &= H\big(f^1_\theta(X_{UL}),\tilde Y^2\big) + D\big(f^1_\theta(X_{UL}),\tilde Y^2\big),\label{eq:cps1}\\
+  \mathcal{L}^2_{\mathrm{cps}} &= H\big(f^2_\phi(X_{UL}),\tilde Y^1\big) + D\big(f^2_\phi(X_{UL}),\tilde Y^1\big),\label{eq:cps2}
+\end{align}
+trong đó $H$ là entropy chéo và $D$ là mất mát Dice. So với CTCT, vốn chỉ dùng Dice cho thành phần này~\cite{luo2022ctct}, DACL dùng đúng dạng hàm của mất mát có giám sát. Nhãn giả vì vậy được đối xử như nhãn thật.
+
+\subsection{Nhất quán nội suy với giáo viên EMA}
+
+Thành phần thứ hai áp dụng ý tưởng của ICT cho mạng Transformer. Hai ảnh không nhãn $X^i_{UL}$ và $X^j_{UL}$ được trộn với tỷ lệ cố định $\sigma=0{,}5$ thành $\hat X_{UL}=\mathrm{Mix}(X^i_{UL},X^j_{UL})$, với $i+j$ bằng kích thước lô không nhãn. Dự đoán của Swin-Unet trên ảnh trộn phải khớp với phép trộn của hai dự đoán từ giáo viên:
+\begin{equation}
+  \Lict=\sum\Big(f^2_\phi(\hat X_{UL})-\mathrm{Mix}\big(f^{\mathrm{ema}}_{\bar\phi}(X^i_{UL}),f^{\mathrm{ema}}_{\bar\phi}(X^j_{UL})\big)\Big)^2 .
+  \label{eq:ict}
+\end{equation}
+Khác với ICT gốc, tỷ lệ trộn được cố định thay vì lấy từ phân phối Beta.
+
+\subsection{Hàm mất mát đồng thuận kép}
+
+Đây là đóng góp chính của DACL. Gọi $p(u)$ và $q(u)$ là phân phối lớp tại điểm ảnh $u$ do $f^1_\theta$ và $f^2_\phi$ dự đoán. Hàm mất mát đồng thuận kép gồm hai số hạng:
+\begin{align}
+  \Lkl  &= \mathbb{E}\Big[\tfrac{1}{HW}\textstyle\sum_u \KL\big(p(u)\,\|\,q(u)\big)\Big],\\
+  \Lent &= \mathbb{E}\Big[\tfrac{1}{HW}\textstyle\sum_u
+           H\big(p(u)\big)+H\big(q(u)\big)-H\big(\tfrac{p(u)+q(u)}{2}\big)\Big],\label{eq:lent}\\
+  \Ldac &= \Lkl + \Lent .
+\end{align}
+$\Lkl$ làm khớp phân phối lớp của hai mạng, còn $\Lent$ được đưa vào như một số hạng chính quy hóa thực nghiệm, nhằm khuyến khích dự đoán vừa nhất quán vừa tự tin. Khác với CPS, vốn chỉ so sánh nhãn cứng, $\Ldac$ tác động lên toàn bộ phân phối xác suất. Vì thế, $\Ldac$ vẫn tạo ra gradient ngay cả khi hai mạng đã cùng nhãn nhưng khác nhau về độ tự tin.
+
+\subsection{Hàm mục tiêu tổng}
+
+Hàm mục tiêu tổng của DACL là
+\begin{equation}
+  \mathcal{L}_{\mathrm{total}}=\big(\mathcal{L}^1_{\mathrm{sup}}+\mathcal{L}^2_{\mathrm{sup}}\big)
+  +\lambda\big(\mathcal{L}^1_{\mathrm{cps}}+\mathcal{L}^2_{\mathrm{cps}}\big)
+  +\tau\,\Lict+\beta\,\Ldac ,
+  \label{eq:total}
+\end{equation}
+trong đó $\mathcal{L}^i_{\mathrm{sup}}=H+D$ tính trên ảnh có nhãn, còn $\lambda$, $\tau$ và $\beta$ là các trọng số cân bằng giữa phần có giám sát và ba thành phần không giám sát. Mỗi vòng lặp dùng một lô gồm một ảnh có nhãn và bốn ảnh không nhãn. Các trọng số này quyết định ảnh không nhãn tác động mạnh đến đâu so với ảnh có nhãn. Vì vậy, chúng được phân tích và lựa chọn riêng cho bài toán của đề tài ở mục~\ref{sec:weights}.
+
+\section{Hàm mất mát và độ đo đánh giá}
+\label{sec:metrics}
+
+\subsection{Hàm mất mát phân đoạn}
+
+Gọi $p_c(u)$ là xác suất mô hình gán lớp $c$ cho điểm ảnh $u$ và $y_c(u)\in\{0,1\}$ là nhãn one-hot. Hàm entropy chéo
+$H(p,y)=-\frac{1}{|\Omega|}\sum_{u}\sum_{c} y_c(u)\log p_c(u)$
+phạt từng điểm ảnh một cách độc lập, nên các lớp chiếm nhiều điểm ảnh chi phối giá trị mất mát. Hàm mất mát Dice~\cite{milletari2016vnet}
+\begin{equation}
+  D(p,y)=1-\frac{1}{C}\sum_{c}\frac{2\sum_u p_c(u)\,y_c(u)+\varepsilon}{\sum_u p_c(u)+\sum_u y_c(u)+\varepsilon}
+\end{equation}
+đo độ trùng khớp ở cấp vùng, nên ít nhạy với mất cân bằng lớp. Tổng $H+D$ là lựa chọn mặc định của DACL và hầu hết các phương pháp đối chứng. Hai thành phần bổ sung cho nhau: entropy chéo cho gradient ổn định ở từng điểm ảnh, còn Dice bám sát độ đo đánh giá.
+
+\subsection{Độ phân kỳ và entropy giữa hai phân phối}
+
+Với hai phân phối lớp $p$ và $q$ tại cùng một điểm ảnh, entropy Shannon $H(p)=-\sum_c p_c\log p_c$~\cite{shannon1948} đo mức độ không chắc chắn của một dự đoán. Độ phân kỳ Kullback--Leibler $\KL(p\|q)=\sum_c p_c\log(p_c/q_c)$~\cite{kullback1951} đo mức sai khác khi dùng $q$ để xấp xỉ $p$. Đại lượng này bất đối xứng và bằng 0 khi và chỉ khi $p=q$. Độ phân kỳ Jensen--Shannon~\cite{lin1991jsd}
+\begin{equation}
+  \JSD(p,q)=H\!\left(\tfrac{p+q}{2}\right)-\tfrac12\big[H(p)+H(q)\big]
+  \label{eq:jsd}
+\end{equation}
+là phiên bản đối xứng và bị chặn của KL. Hệ thức~\eqref{eq:jsd} là công cụ để phân tích số hạng entropy của DACL ở Chương~\ref{chap:phuongphap}.
+
+\subsection{Độ đo đánh giá}
+
+Gọi $P$ và $G$ là tập điểm ảnh tế bào trong dự đoán và trong mặt nạ chuẩn, còn $\partial P$ và $\partial G$ là tập điểm biên tương ứng. Đề tài sử dụng bốn độ đo phổ biến trong phân đoạn ảnh y tế, định nghĩa theo tổng hợp của Taha và Hanbury~\cite{taha2015metrics}:
+\begin{align}
+  \mathrm{DSC}&=\frac{2|P\cap G|}{|P|+|G|}, \qquad
+  \mathrm{Jaccard}=\frac{|P\cap G|}{|P\cup G|},\\
+  \mathrm{HD95}&=\mathrm{P}_{95}(\mathcal{S}), \qquad \mathrm{ASD}=\overline{\mathcal{S}},
+  \qquad \mathcal{S}=\{d(a,\partial G)\}_{a\in\partial P}\cup\{d(b,\partial P)\}_{b\in\partial G},
+\end{align}
+với $d(a,\partial G)$ là khoảng cách Euclid từ điểm $a$ đến biên gần nhất của $G$, $\mathcal{S}$ là tập khoảng cách gộp theo cả hai chiều, $\mathrm{P}_{95}$ là phân vị thứ 95 và $\overline{\mathcal{S}}$ là giá trị trung bình. DSC và Jaccard đo độ trùng khớp về diện tích và có quan hệ đơn điệu với nhau: $\mathrm{Jaccard}=\mathrm{DSC}/(2-\mathrm{DSC})$, nên thường cho cùng một thứ hạng. HD95 và ASD đo sai lệch hình học của đường biên. HD95 là biến thể của khoảng cách Hausdorff~\cite{huttenlocher1993}, dùng phân vị 95 thay cho giá trị lớn nhất để bớt nhạy với một vài điểm ngoại lai. Trên ảnh có hàng chục tế bào, hai nhóm độ đo này phản ánh những khía cạnh khác nhau. Một mô hình có thể đạt DSC cao nhờ phủ đúng phần lớn diện tích, nhưng vẫn có HD95 lớn nếu sinh ra vài vùng dương tính giả nằm xa mọi tế bào thật.
+
+\section{Tóm tắt chương}
+
+Tài liệu tổng quan cho thấy ba điểm chính. Một là, phân đoạn tế bào máu có những khó khăn riêng: nhiều đối tượng nhỏ, tế bào chạm nhau với ranh giới mảnh, và màu nhuộm biến thiên mạnh. Các mô hình học sâu đã giải quyết tốt bài toán khi có đủ nhãn~\cite{depto2021blood}. Hai là, học bán giám sát đã phát triển từ các ràng buộc nhất quán trên một mạng sang đồng huấn luyện hai mạng dị thể. Mọi phương pháp trong nhóm này đều phải cân bằng giữa việc khai thác nhãn giả và nguy cơ thiên lệch xác nhận. Ba là, DACL kết hợp giám sát giả chéo, nhất quán nội suy và một ràng buộc mới trên toàn bộ phân phối xác suất của hai mạng. Tuy nhiên, khung này được xây dựng cho ảnh siêu âm. Cách các thành phần mất mát của nó tương tác với nhau khi tín hiệu giám sát yếu cũng chưa được làm rõ. Hai câu hỏi này là điểm xuất phát cho phương pháp nghiên cứu ở Chương~\ref{chap:phuongphap}: xây dựng lại DACL cho ảnh hiển vi tế bào máu, phân tích các thành phần mất mát, và đánh giá mô hình trong cùng điều kiện với các phương pháp đối chứng.

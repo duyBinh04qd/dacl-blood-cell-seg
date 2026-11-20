@@ -1,0 +1,78 @@
+% =====================================================================
+\chapter{Tóm tắt, kết luận, thảo luận và khuyến nghị}
+\label{chap:ketluan}
+
+Chương này tổng kết toàn bộ nghiên cứu. Mục~\ref{sec:summary} tóm tắt mục đích, câu hỏi, tổng quan, phương pháp và kết quả. Mục~\ref{sec:conclusion} rút ra kết luận cho từng câu hỏi nghiên cứu. Mục~\ref{sec:discussion} thảo luận các kết luận trong mối liên hệ với cơ sở lý thuyết và các nghiên cứu liên quan, đồng thời nêu giới hạn của đề tài. Hai mục tiếp theo đưa ra khuyến nghị cho thực tiễn và gợi ý cho nghiên cứu tiếp theo. Mục cuối là kết luận chung.
+
+\section{Tóm tắt}
+\label{sec:summary}
+
+Đề tài xây dựng một mô hình phân đoạn tế bào máu trong ảnh hiển vi dựa trên khung học bán giám sát DACL~\cite{wang2026dacl}, nhằm giảm nhu cầu về mặt nạ gán nhãn. Ba câu hỏi được đặt ra: DACL chính xác đến đâu so với các phương pháp bán giám sát khác và so với học có giám sát (CH1); lợi ích của DACL nằm ở loại lỗi nào và ở những ảnh nào (CH2); các thành phần mất mát của DACL tương tác ra sao, và cần chọn trọng số thế nào để huấn luyện ổn định (CH3).
+
+Tổng quan tài liệu cho thấy ảnh tế bào máu có nhiều đối tượng nhỏ, ranh giới mảnh giữa các tế bào chạm nhau và màu nhuộm biến thiên mạnh. Các phương pháp bán giám sát hiện có đều phải cân bằng giữa việc khai thác nhãn giả và nguy cơ thiên lệch xác nhận. DACL kết hợp giám sát giả chéo giữa UNeXt và Swin-Unet, nhất quán nội suy với giáo viên EMA, và một hàm mất mát đồng thuận kép trên toàn bộ phân phối xác suất của hai mạng.
+
+Về phương pháp, đề tài dùng thiết kế thực nghiệm có đối chứng. DACL và tám phương pháp bán giám sát được xây dựng lại từ đầu trong cùng một khung mã. Tất cả được huấn luyện trên bộ dữ liệu Blood Cell Segmentation gồm 1\,328 ảnh, với cùng cách chia dữ liệu và chế độ huấn luyện, ở hai mức 5\% và 10\% nhãn. Đề tài phân tích số hạng entropy của hàm mất mát đồng thuận kép và độ lớn của các thành phần mất mát, từ đó chọn bộ trọng số $\{0{,}2;\,0{,}2;\,1\}$. Kết quả được đánh giá bằng DSC, Jaccard, HD95, ASD, kiểm định Wilcoxon theo cặp, phân tích precision và recall, và phân tích theo nhóm độ khó.
+
+Kết quả cho thấy DACL đạt DSC 94,38\% ở mức 5\% và 94,46\% ở mức 10\% nhãn, cao nhất trong nhóm bán giám sát với khác biệt có ý nghĩa thống kê. DACL có precision cao nhất trong nhóm, và cải thiện 1,42 điểm DSC so với UNeXt học có giám sát trên nhóm ảnh khó nhất. Tuy nhiên, DACL không vượt rõ UNeXt học có giám sát trên cùng số nhãn, và có HD95 kém hơn một số phương pháp đơn giản. Quá trình huấn luyện ổn định, với phần không giám sát chỉ bằng khoảng 18\% phần có giám sát sau giai đoạn ramp-up.
+
+\section{Kết luận}
+\label{sec:conclusion}
+
+\textbf{Đối với CH1.} Trên ảnh hiển vi tế bào máu, DACL vượt cả tám phương pháp bán giám sát tiêu biểu về độ trùng khớp ở cả hai mức nhãn. Khoảng cách đến phương pháp đứng thứ hai là 0,39 điểm DSC ở mức 5\% và 0,60 điểm ở mức 10\%, đều có ý nghĩa thống kê. Kết luận này không mở rộng sang độ chính xác biên, vì HD95 của DACL chỉ ở mức trung bình đến kém trong nhóm. Nó cũng không mở rộng sang so sánh với học có giám sát: ở mức 5\%, DACL tương đương UNeXt học có giám sát, và ở mức 10\%, DACL thấp hơn một chút.
+
+\textbf{Đối với CH2.} Lợi ích của DACL không đến từ việc đánh đổi loại lỗi này lấy loại lỗi kia. DACL giảm đồng thời dương tính giả và âm tính giả so với các phương pháp bán giám sát khác. Lợi ích tập trung ở nhóm ảnh khó nhất, chủ yếu là ảnh có cụm tế bào dày đặc mà UNeXt học có giám sát bỏ sót phần bên trong. Trên nhóm ảnh này, DACL cải thiện tương đương Swin-Unet học có giám sát. Cái giá là một mức giảm nhỏ trên ảnh dễ, và một số dự đoán nhầm trên vùng cặn nhuộm.
+
+\textbf{Đối với CH3.} Số hạng entropy của hàm mất mát đồng thuận kép chứa hai tác động ngược chiều. Khi hai mạng đã đồng thuận, số hạng này trở thành cực tiểu hóa entropy với hệ số $\beta$. Kết hợp với nhãn giả cứng của $\Lcps$, các thành phần không giám sát của DACL cùng đẩy hai mạng về dự đoán tự tin. Do đó, độ ổn định của DACL phụ thuộc vào tỷ lệ giữa phần không giám sát và tín hiệu giám sát thật. Khi mỗi vòng lặp chỉ có một ảnh có nhãn, bộ trọng số $\{0{,}2;\,0{,}2;\,1\}$ giúp DACL huấn luyện ổn định, với tín hiệu giám sát giữ vai trò chủ đạo.
+
+\section{Thảo luận}
+\label{sec:discussion}
+
+\subsection{Ưu thế của DACL trong nhóm bán giám sát}
+
+DACL dẫn đầu nhóm bán giám sát ở cả hai mức nhãn. Một chi tiết đáng chú ý là DSTCT, phương pháp duy nhất ngoài DACL có giáo viên EMA của Swin-Unet, đứng thứ hai ở mức 10\%. Trong hình định tính, DSTCT cũng phủ các cụm tế bào dày đặc tốt tương đương DACL. Điều này gợi ý rằng mục tiêu ổn định từ một Transformer được tiền huấn luyện là thành phần đóng góp quan trọng. Kết quả cũng ủng hộ lập luận của Luo và cộng sự rằng cặp mạng dị thể giúp giám sát chéo hiệu quả hơn, vì hai loại mạng mắc lỗi ở những vị trí khác nhau~\cite{luo2022ctct}. Tuy nhiên, đề tài chưa thực hiện thí nghiệm loại bỏ từng thành phần, nên chưa thể tách phần đóng góp riêng của $\Ldac$ so với giáo viên EMA và giám sát chéo.
+
+\subsection{Vì sao DACL không vượt rõ học có giám sát}
+
+Mục tiêu của học bán giám sát là dùng ảnh không nhãn để vượt mô hình chỉ học từ cùng số ảnh có nhãn. Trong đề tài, DACL chỉ đạt điều này ở mức tương đương. Có hai nguyên nhân.
+
+Nguyên nhân thứ nhất là dư địa cải thiện hẹp. Trên bộ dữ liệu này, học có giám sát với 46 ảnh đã đạt 94,15\%, chỉ kém mức dùng toàn bộ 930 ảnh có nhãn 1,08 điểm. Khi phần lớn độ chính xác đã đạt được chỉ với ít nhãn, ảnh không nhãn có ít thông tin mới để bổ sung. Đóng góp của chúng khi đó dễ bị lấn át bởi nhiễu do nhãn giả mang lại, như mức giảm precision ở mọi phương pháp bán giám sát cho thấy.
+
+Nguyên nhân thứ hai thuộc về thiết kế thí nghiệm. Mô hình học có giám sát dùng lô 8 ảnh có nhãn, còn các phương pháp bán giám sát dùng 1 ảnh có nhãn mỗi vòng. Qua 30\,000 vòng lặp, mô hình học có giám sát nhận 240\,000 lượt ảnh có nhãn, gấp tám lần các phương pháp bán giám sát, với gradient ít nhiễu hơn. Hình~\ref{fig:curves} phản ánh điều này: UNeXt học có giám sát tăng nhanh hơn hẳn trong giai đoạn đầu. So sánh giữa học có giám sát và học bán giám sát vì vậy có lợi cho học có giám sát. Trong khi đó, so sánh giữa các phương pháp bán giám sát với nhau không bị ảnh hưởng, vì chúng dùng chung một cách bố trí lô. Nhận định rằng ảnh không nhãn ít giá trị trên bộ dữ liệu này chỉ nên được đưa ra sau khi so sánh với học có giám sát dùng cùng cách bố trí lô.
+
+\subsection{Độ chính xác biên}
+
+Ràng buộc đồng thuận trên toàn bộ phân phối xác suất được kỳ vọng giúp đường biên chính xác hơn, nhưng HD95 của DACL không cho thấy điều đó. Có ba yếu tố có thể giải thích. Thứ nhất, trên ảnh tế bào máu, HD95 bị chi phối bởi một số ít vùng dương tính giả nằm xa tế bào thật, như mảng cặn nhuộm ở Hình~\ref{fig:qual}, chứ không phải bởi sai lệch nhỏ dọc đường viền. Thứ hai, theo phân tích ở mục~\ref{sec:loss-analysis}, $\Ldac$ có thành phần cực tiểu hóa entropy. Thành phần này làm dự đoán tự tin hơn, kể cả ở những vùng mà mô hình sai. Một dự đoán sai nhưng tự tin trên vùng cặn nhuộm sẽ tạo thành một vùng dương tính giả trọn vẹn thay vì rải rác. Đây là giả thuyết, chưa được kiểm chứng bằng thí nghiệm loại bỏ $\Lent$. Thứ ba, HD95 được tính ở $224\times224$, nơi các mức chênh 0,1--0,2 điểm ảnh giữa các phương pháp rất nhỏ so với kích thước tế bào. Vì vậy, khác biệt về HD95 tuy có ý nghĩa thống kê nhưng có ý nghĩa thực tiễn hạn chế.
+
+\subsection{Lợi ích tập trung ở ảnh khó}
+
+Kết quả ở CH2 phù hợp với ý tưởng thiết kế của DACL: chuyển tri thức từ Transformer dung lượng lớn sang CNN nhẹ~\cite{wang2026dacl}. Trên nhóm ảnh khó nhất, UNeXt huấn luyện bằng DACL cải thiện tương đương Swin-Unet học có giám sát. Hình định tính cho thấy đó chủ yếu là các cụm tế bào dày đặc, dạng ảnh ít xuất hiện trong 46 ảnh có nhãn. Ảnh không nhãn, thông qua Swin-Unet và giáo viên EMA, cung cấp thêm các ví dụ thuộc dạng này. Cần đọc kết quả với lưu ý về hồi quy về trung bình, vì các nhóm được xác định theo điểm số của chính UNeXt học có giám sát. Tuy vậy, sự khác biệt giữa DACL, CPS và Swin-Unet trong cùng một nhóm vẫn so sánh được. Mức giảm nhỏ của DACL trên ảnh dễ có thể là hệ quả của nhiễu từ nhãn giả trên những ảnh mà học có giám sát đã làm tốt. Về mặt ứng dụng, đây là sự đánh đổi có lợi, vì lỗi trên ảnh khó ảnh hưởng đến các phép đếm và đo phía sau nhiều hơn.
+
+\subsection{Trọng số của các thành phần mất mát}
+
+Phân tích ở CH3 cho thấy trọng số của DACL không phải là hằng số cố định của khung, mà phụ thuộc vào lượng tín hiệu giám sát trong mỗi vòng lặp. Với một ảnh có nhãn mỗi vòng, tăng trọng số lên mười lần khiến phần không giám sát lớn gấp nhiều lần phần có giám sát, và lần thử nghiệm sơ bộ với trọng số đó không ổn định. Điều này phù hợp với lý thuyết về thiên lệch xác nhận~\cite{arazo2020pseudo}: khi nhãn giả chi phối quá trình học, hai mạng có thể củng cố lỗi chung của nhau. Phân tích số hạng entropy bổ sung một góc nhìn. $\Lent$ tự nó không khuyến khích đồng thuận, mà khuyến khích sự tự tin. Do đó, $\beta$ cần được xem như hệ số của một số hạng cực tiểu hóa entropy, vốn được biết là có thể gây hại khi mô hình chưa đủ tốt~\cite{grandvalet2005entropy}.
+
+Về tính công bằng, bộ trọng số của DACL do đề tài lựa chọn, trong khi các phương pháp đối chứng dùng giá trị theo công bố hoặc mã nguồn của từng phương pháp. Để hạn chế thiên lệch, bộ trọng số được xác định theo các căn cứ phân tích trước khi chạy thí nghiệm chính, và chỉ một cấu hình được dùng. Kết quả là trọng số của DACL nằm cùng bậc độ lớn với các phương pháp đối chứng. Tuy vậy, DACL vẫn là phương pháp duy nhất có trọng số được phân tích riêng cho bài toán này.
+
+\subsection{Giới hạn của nghiên cứu}
+
+Ngoài các điểm đã nêu, kết luận của đề tài chịu bốn giới hạn. Thứ nhất, mỗi cấu hình chỉ được huấn luyện một lần. Các mức giảm DSC khi tăng nhãn của một số phương pháp đối chứng cho thấy dao động giữa các lần huấn luyện có thể tới gần một điểm. Các khác biệt nhỏ hơn mức đó cần được xác nhận bằng nhiều lần huấn luyện. Thứ hai, huấn luyện ở $224\times224$ làm mất một phần chi tiết biên và làm méo tỷ lệ khung hình. HD95 và ASD tính bằng điểm ảnh ở độ phân giải này. Muốn quy đổi sang điểm ảnh của ảnh $1600\times1200$, cần nhân với khoảng 5,4 theo chiều cao và 7,1 theo chiều rộng. Thứ ba, đề tài chưa thực hiện thí nghiệm loại bỏ từng thành phần mất mát, và chưa khảo sát có hệ thống ảnh hưởng của trọng số. Thứ tư, kết quả chỉ dựa trên một bộ dữ liệu công khai, mà nguồn gốc và quy trình gán nhãn không được mô tả trong tài liệu truy cập được.
+
+\section{Khuyến nghị cho thực tiễn}
+
+Các khuyến nghị dưới đây dành cho những người phát triển hệ thống phân tích ảnh tiêu bản máu và những người áp dụng học bán giám sát cho một bài toán ảnh y tế mới:
+\begin{enumerate}
+  \item Khi cần mô hình nhẹ để chạy trên thiết bị phổ thông, có thể dùng UNeXt huấn luyện bằng DACL. Với 46 ảnh có nhãn, mô hình đạt DSC 94,38\% với 1,58 triệu tham số và 1,80 GFLOPs, chỉ kém Swin-Unet học có giám sát 0,34 điểm. Mô hình cũng xử lý các cụm tế bào dày đặc tốt hơn hẳn UNeXt học có giám sát.
+  \item Khi áp dụng DACL hoặc một phương pháp giám sát chéo tương tự cho dữ liệu mới, không nên cố định một bộ trọng số từ trước. Nên ước lượng tỷ lệ giữa phần không giám sát và phần có giám sát từ log của vài trăm vòng đầu, rồi chọn trọng số sao cho phần có giám sát giữ vai trò chủ đạo. Trong đề tài, tỷ lệ này khoảng 0,2 sau giai đoạn ramp-up.
+  \item Khi có ngân sách gán nhãn bổ sung, nên ưu tiên các ảnh có cụm tế bào dày đặc và các ảnh có cặn nhuộm, vì đây là nơi lỗi của mọi mô hình tập trung.
+  \item Khi đánh giá mô hình, nên báo cáo kết quả theo nhóm độ khó và theo loại lỗi bên cạnh DSC trung bình. Trên dữ liệu có dư địa hẹp như bộ dữ liệu này, DSC trung bình che khuất phần lớn khác biệt giữa các phương pháp.
+\end{enumerate}
+
+\section{Gợi ý cho nghiên cứu tiếp theo}
+
+Hướng cần làm trước tiên là thí nghiệm loại bỏ từng thành phần của DACL: chỉ $\Lcps$, thêm $\Lict$, thêm $\Ldac$, và $\Ldac$ không có $\Lent$. Notebook của đề tài đã hỗ trợ tùy chọn \texttt{USE\_L\_ENT} cho thí nghiệm cuối. Các thí nghiệm này sẽ tách được đóng góp riêng của hàm mất mát đồng thuận kép và kiểm chứng giả thuyết về vai trò của số hạng entropy đối với HD95. Song song, cần khảo sát có hệ thống ảnh hưởng của trọng số, ít nhất là thay đổi riêng $\beta$ và thay đổi đồng thời cả ba trọng số theo nhiều hệ số. Kết quả sẽ cho biết khoảng trọng số mà DACL huấn luyện ổn định.
+
+Để củng cố các so sánh, cần lặp lại các thí nghiệm chính với ít nhất ba hạt giống ngẫu nhiên, và huấn luyện học có giám sát với cùng cách bố trí lô như học bán giám sát. Đánh giá ở mức nhãn thấp hơn sẽ giúp phân biệt rõ hơn các phương pháp; cách chia dữ liệu của đề tài đã chuẩn bị sẵn tập 2\% nhãn (18 ảnh). Huấn luyện ở độ phân giải cao hơn, chẳng hạn $448\times448$, sẽ kiểm tra giả thuyết về vai trò của các khe nền mảnh giữa tế bào. Ở mức phương pháp, có thể thử các biến thể của thành phần đồng thuận: thay $\Lent$ bằng JSD hoặc KL đối xứng, hoặc chỉ áp dụng $\Ldac$ trên các điểm ảnh có độ tin cậy cao. Cuối cùng, cần bổ sung bước tách từng tế bào và đếm tế bào, và đánh giá trên các bộ dữ liệu từ những phòng xét nghiệm khác, để đo giá trị của mô hình trên chính tác vụ mà phân đoạn phục vụ.
+
+\section{Kết luận chung}
+
+Đề tài đã xây dựng thành công một mô hình phân đoạn tế bào máu bán giám sát dựa trên khung DACL. Mô hình dẫn đầu nhóm phương pháp bán giám sát về độ trùng khớp trên ảnh hiển vi. Quá trình xây dựng cho thấy một mô hình bán giám sát không thể chuyển sang dữ liệu mới chỉ bằng cách chạy lại. Trọng số của các thành phần mất mát phải được xem xét theo tín hiệu giám sát sẵn có, và giá trị của ảnh không nhãn phụ thuộc vào mức độ mà ít nhãn đã giải quyết được bài toán. Trên bộ dữ liệu này, đóng góp rõ nhất của DACL không nằm ở điểm số trung bình, mà ở khả năng giúp một mạng nhỏ xử lý những ảnh khó mà chính mạng đó, khi chỉ học từ ít nhãn, không giải quyết được.

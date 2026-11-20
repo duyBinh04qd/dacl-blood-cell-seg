@@ -1,0 +1,178 @@
+% =====================================================================
+%  BÁO CÁO ĐỒ ÁN KHOA HỌC
+%  Nghiên cứu và ứng dụng mô hình Dual Agreement Consistency Learning
+%  cho bài toán phân đoạn tế bào máu trong ảnh hiển vi
+%  Biên dịch: pdfLaTeX + BibTeX  (latexmk -pdf report.tex)
+%  Các bảng trong thư mục tables/ được sinh tự động từ thư mục results/.
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------- Tiếng Việt ----------
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{lmodern}
+
+% ---------- Trình bày ----------
+\usepackage[left=3cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}\onehalfspacing
+\usepackage{indentfirst}
+\setlength{\parindent}{1cm}
+\setlength{\parskip}{4pt}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\centering}
+  {\large\MakeUppercase{\chaptertitlename}\ \thechapter}{4pt}{\Large}
+\titlespacing*{\chapter}{0pt}{-10pt}{20pt}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Toán, bảng, hình ----------
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,tabularx,multirow,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{figures/}}
+
+\newcommand{\Lsup}{\mathcal{L}_{\mathrm{sup}}}
+\newcommand{\Lcps}{\mathcal{L}_{\mathrm{cps}}}
+\newcommand{\Lict}{\mathcal{L}_{\mathrm{ict}}}
+\newcommand{\Ldac}{\mathcal{L}_{\mathrm{dac}}}
+\newcommand{\Lkl}{\mathcal{L}_{\mathrm{KL}}}
+\newcommand{\Lent}{\mathcal{L}_{\mathrm{ent}}}
+\newcommand{\JSD}{\mathrm{JSD}}
+\newcommand{\KL}{\mathrm{KL}}
+
+% Nạp các dòng bảng sinh tự động bên trong môi trường tabular.
+% \input của LaTeX mới chèn token ở cuối tệp làm hỏng \bottomrule, nên dùng lệnh nguyên thủy.
+\makeatletter
+\newcommand{\inputtable}[1]{\@@input #1 }
+\makeatother
+
+% =====================================================================
+\begin{document}
+
+% ---------------------------- TRANG BÌA -----------------------------
+\begin{titlepage}
+  \centering
+  {\normalsize \textbf{TRƯỜNG ĐẠI HỌC CÔNG NGHIỆP THÀNH PHỐ HỒ CHÍ MINH}}\\[4pt]
+  {\normalsize \textbf{KHOA CÔNG NGHỆ THÔNG TIN}}\\[2.5cm]
+
+  {\Large \textbf{BÁO CÁO ĐỒ ÁN KHOA HỌC}}\\[1.5cm]
+
+  {\Large \textbf{NGHIÊN CỨU VÀ ỨNG DỤNG MÔ HÌNH\\[6pt]
+  {\large ``DUAL AGREEMENT CONSISTENCY LEARNING''}\\[6pt]
+  CHO BÀI TOÁN PHÂN ĐOẠN TẾ BÀO MÁU\\[6pt]
+  TRONG ẢNH HIỂN VI}}\\[3cm]
+
+  \begin{tabular}{ll}
+    Sinh viên thực hiện: & \underline{\hspace{6cm}} \\[4pt]
+    Mã số sinh viên:     & \underline{\hspace{6cm}} \\[4pt]
+    Lớp:                 & \underline{\hspace{6cm}} \\[4pt]
+    Giảng viên hướng dẫn:& \underline{\hspace{6cm}} \\
+  \end{tabular}
+
+  \vfill
+  {\large Thành phố Hồ Chí Minh, tháng \underline{\hspace{1cm}} năm 2026}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+% ------------------------- TRANG BẢN QUYỀN --------------------------
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+  \copyright\ 2026 \underline{\hspace{6cm}}\\[4pt]
+  Bảo lưu mọi quyền.
+\end{center}
+\noindent Mã nguồn, cấu hình thí nghiệm và kết quả của đề tài được công bố tại\\
+\url{https://github.com/duyBinh04qd/dacl-blood-cell-seg}.
+Bộ dữ liệu Blood Cell Segmentation thuộc quyền của nhóm tác giả Depto và cộng sự và được sử dụng theo giấy phép MIT của kho dữ liệu gốc.
+\vspace*{\fill}
+\clearpage
+
+% ---------------------------- LỜI CẢM ƠN ----------------------------
+\chapter*{Lời cảm ơn}
+\addcontentsline{toc}{chapter}{Lời cảm ơn}
+
+Em xin gửi lời cảm ơn chân thành đến \underline{\hspace{5cm}}, người đã trực tiếp hướng dẫn, định hướng và góp ý cho em trong suốt quá trình thực hiện đề tài. Em cũng xin cảm ơn các thầy cô Khoa Công nghệ Thông tin, Trường Đại học Công nghiệp Thành phố Hồ Chí Minh đã trang bị cho em nền tảng kiến thức để thực hiện nghiên cứu này.
+
+Em cảm ơn nhóm tác giả Depto và cộng sự đã công bố bộ dữ liệu Blood Cell Segmentation, cũng như các tác giả của DACL, UNeXt, Swin-Unet và các phương pháp học bán giám sát được sử dụng trong đề tài đã công khai bài báo và mã nguồn. Các thí nghiệm của đề tài được thực hiện trên tài nguyên GPU miễn phí của nền tảng Kaggle.
+
+Do thời gian và kinh nghiệm còn hạn chế, báo cáo khó tránh khỏi thiếu sót. Em rất mong nhận được ý kiến đóng góp của thầy cô để hoàn thiện đề tài.
+
+% ------------------------------ TÓM TẮT ------------------------------
+\chapter*{Tóm tắt}
+\addcontentsline{toc}{chapter}{Tóm tắt}
+
+Phân đoạn tế bào trong ảnh hiển vi tiêu bản máu là bước nền tảng cho việc đếm và đo tế bào tự động, nhưng các mô hình học sâu cần nhiều mặt nạ được gán nhãn đến từng điểm ảnh. Đề tài xây dựng một mô hình phân đoạn bán giám sát dựa trên khung Dual Agreement Consistency Learning (DACL) của Wang và cộng sự. Mô hình huấn luyện đồng thời mạng CNN nhẹ UNeXt, mạng Transformer Swin-Unet và một giáo viên EMA của Swin-Unet, kết hợp giám sát giả chéo, nhất quán nội suy và hàm mất mát đồng thuận kép. Khi suy luận, mô hình chỉ dùng UNeXt với 1,58 triệu tham số.
+
+Đề tài xây dựng lại từ đầu DACL cùng tám phương pháp bán giám sát tiêu biểu (MT, DCT, CPS, ICT, CTCT, PCPCS, DSTCT, LMCT) trong một khung thí nghiệm thống nhất. Các phương pháp được đánh giá trên bộ dữ liệu Blood Cell Segmentation gồm 1\,328 ảnh, ở hai mức 5\% và 10\% ảnh huấn luyện có nhãn, bằng bốn độ đo DSC, Jaccard, HD95 và ASD, cùng kiểm định Wilcoxon theo cặp. Dựa trên phân tích độ lớn của các thành phần mất mát khi mỗi vòng lặp chỉ có một ảnh có nhãn, đề tài chọn bộ trọng số $\{\lambda,\tau,\beta\}=\{0{,}2;\,0{,}2;\,1\}$.
+
+Kết quả cho thấy DACL đạt DSC 94,38\% ở mức 5\% và 94,46\% ở mức 10\% nhãn, cao nhất trong nhóm phương pháp bán giám sát, với khác biệt có ý nghĩa thống kê so với từng phương pháp ($p<0{,}001$). Ưu thế này đến từ việc giảm đồng thời dương tính giả và âm tính giả, và tập trung ở nhóm ảnh khó nhất, nơi DACL cải thiện 1,42 điểm DSC so với UNeXt học có giám sát. Tuy nhiên, DACL không vượt rõ rệt UNeXt học có giám sát trên cùng số ảnh có nhãn, và không dẫn đầu về HD95. Nguyên nhân chính là bộ dữ liệu chỉ để lại dư địa cải thiện khoảng một điểm DSC. Đề tài cũng phân tích số hạng entropy trong hàm mất mát đồng thuận kép, và chỉ ra rằng trọng số của các thành phần không giám sát cần được chọn theo lượng tín hiệu giám sát sẵn có.
+
+\noindent\textbf{Từ khóa:} phân đoạn ảnh y tế, tế bào máu, học bán giám sát, DACL, UNeXt, Swin-Unet.
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\chapter*{Danh mục chữ viết tắt}
+\addcontentsline{toc}{chapter}{Danh mục chữ viết tắt}
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+Viết tắt & Ý nghĩa \\
+\midrule
+ASD    & Average Surface Distance -- khoảng cách bề mặt trung bình \\
+CE     & Cross-Entropy -- entropy chéo \\
+CNN    & Convolutional Neural Network -- mạng nơ-ron tích chập \\
+CPS    & Cross Pseudo Supervision -- giám sát giả chéo \\
+CTCT   & Cross Teaching between CNN and Transformer \\
+DAC    & Dual-Agreement Consistency -- nhất quán đồng thuận kép \\
+DACL   & Dual Agreement Consistency Learning \\
+DCT    & Deep Co-Training \\
+DSC    & Dice Similarity Coefficient -- hệ số tương đồng Dice \\
+DSTCT  & Dual Student-Teacher framework with CNN--ViT collaborative learning \\
+EMA    & Exponential Moving Average -- trung bình trượt hàm mũ \\
+FS     & Fully Supervised -- học có giám sát (chỉ dùng ảnh có nhãn) \\
+HD95   & 95th-percentile Hausdorff Distance -- khoảng cách Hausdorff phân vị 95 \\
+ICT    & Interpolation Consistency Training -- huấn luyện nhất quán nội suy \\
+JSD    & Jensen--Shannon Divergence -- độ phân kỳ Jensen--Shannon \\
+KL     & Kullback--Leibler divergence -- độ phân kỳ Kullback--Leibler \\
+LMCT   & phương pháp giám sát chéo CNN--Transformer của Wang, Curran và Silvestre (ISBI 2025) \\
+MT     & Mean Teacher \\
+PCPCS  & Pixel-level Contrastive and Pixel-level Cross-Supervised learning \\
+SGD    & Stochastic Gradient Descent -- hạ gradient ngẫu nhiên \\
+SSL    & Semi-Supervised Learning -- học bán giám sát \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\clearpage
+\pagenumbering{arabic}
+
+\input{chapters/01_gioi_thieu}
+\input{chapters/02_tong_quan}
+\input{chapters/03_phuong_phap}
+\input{chapters/04_ket_qua}
+\input{chapters/05_tom_tat_ket_luan}
+
+\bibliographystyle{unsrt}
+\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+\bibliography{references}
+
+\appendix
+\input{chapters/06_phu_luc}
+
+\end{document}

@@ -1,0 +1,23 @@
+\begin{table*}[!t]
+\caption{Cấu hình các phương pháp bán giám sát trong nghiên cứu}
+\label{tab:baselines}
+\centering
+\setlength{\tabcolsep}{4pt}
+\sbox{\tabbox}{\begin{tabular}{|p{36pt}|p{100pt}|p{140pt}|p{92pt}|p{98pt}|}
+\hline
+Phương pháp & Mạng (khởi tạo) & Thành phần không giám sát & Trọng số (nguồn) & Điều chỉnh so với bản gốc \\
+\hline
+MT & UNeXt, giáo viên EMA (từ đầu) & MSE với dự đoán của giáo viên trên ảnh thêm nhiễu & 0,1 (SSL4MIS) & UNeXt thay mạng gốc \\
+ICT & UNeXt, giáo viên EMA (từ đầu) & MSE trên ảnh trộn mixup & 0,1 (SSL4MIS) & UNeXt thay mạng gốc \\
+DCT & 2 UNeXt (từ đầu) & JSD giữa hai mạng; khác biệt góc nhìn với ví dụ đối kháng & 10; 0,5 (bài báo gốc, bài toán phân loại) & Chuyển sang phân đoạn; UNeXt thay mạng gốc \\
+CPS & 2 UNeXt (từ đầu) & CE + Dice với nhãn giả cứng của mạng kia & 0,1 (SSL4MIS) & UNeXt thay mạng gốc; trọng số 0,1 thay 1,5 \\
+CTCT & UNeXt (từ đầu), Swin-Unet (ImageNet) & Dice với nhãn giả cứng của mạng kia & 0,1 (mã nguồn CTCT) & UNeXt thay UNet \\
+PCPCS & UNeXt (từ đầu), Swin-Unet (ImageNet) & Dice với nhãn giả cứng; MSE giữa đầu ra đã chiếu & 0,1; 1 (mã nguồn Semi-Mamba-UNet) & Swin-Unet thay mạng Mamba \\
+DSTCT & UNeXt (từ đầu), Swin-Unet và giáo viên (ImageNet) & Nhãn cứng, nhãn mềm làm sắc, chênh lệch độ quyết đoán, nhất quán với giáo viên & 0,5; 1; 3; 0,1 (bài báo gốc) & UNeXt thay UNet \\
+LMCT & UNeXt (từ đầu), Swin-Unet (ImageNet) & Dice với xác suất mềm của mạng kia & 0,1 (mã nguồn LMCT) & Bỏ thành phần InfoNCE \\
+DACL & UNeXt (từ đầu), Swin-Unet và giáo viên (ImageNet) & $\Lx{cps}$, $\Lx{ict}$, $\Lx{dac}$ & 0,2; 0,2; 1 (Mục~\ref{sec:weights}) & Trọng số chọn lại; hệ số EMA 0,99 \\
+\hline
+\end{tabular}}
+\usebox{\tabbox}\\[2pt]
+\parbox{\wd\tabbox}{\footnotesize ``Từ đầu'': khởi tạo ngẫu nhiên; ``ImageNet'': khởi tạo từ trọng số Swin-T tiền huấn luyện trên ImageNet. Mọi phương pháp là phiên bản được cài đặt lại theo giao thức của nghiên cứu, không đồng nhất với phương pháp gốc. Không phương pháp nào được dò tìm trọng số trên bộ dữ liệu này.}
+\end{table*}

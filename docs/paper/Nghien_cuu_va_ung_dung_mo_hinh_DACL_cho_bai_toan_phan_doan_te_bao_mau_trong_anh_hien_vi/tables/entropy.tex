@@ -1,0 +1,16 @@
+\begin{table}[!t]
+\caption{Giá trị các số hạng mất mát tại một điểm ảnh ($p$, $q$ là xác suất lớp tế bào của UNeXt và Swin-Unet)}
+\label{tab:entropy}
+\centering
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|p{84pt}|c|c|c|c|c|}
+\hline
+Trường hợp & $p$ & $q$ & $\Lx{KL}$ & $\Lx{ent}$ & $\Lx{dac}$ \\
+\hline
+Đồng thuận, tự tin & 0,90 & 0,90 & 0 & 0,325 & 0,325 \\
+Đồng thuận, không chắc chắn & 0,50 & 0,50 & 0 & 0,693 & 0,693 \\
+Cùng nhãn, khác độ tự tin & 0,99 & 0,60 & 0,459 & 0,222 & 0,681 \\
+Tự tin, trái ngược & 0,99 & 0,01 & 4,503 & $-$0,581 & 3,922 \\
+\hline
+\end{tabular}
+\end{table}

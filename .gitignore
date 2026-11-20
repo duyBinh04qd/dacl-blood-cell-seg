@@ -7,6 +7,10 @@ outputs/
 *.pt
 *.ckpt
 results_*.zip
+# archives (GitHub rejects files > 100 MB)
+*.zip
+*.rar
+*.7z
 
 # --- Python ---
 __pycache__/

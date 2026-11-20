@@ -1,0 +1,61 @@
+% =====================================================================
+\chapter{Giới thiệu}
+\label{chap:gioithieu}
+
+\section{Xác định vấn đề}
+
+Quan sát tiêu bản máu ngoại vi dưới kính hiển vi là một xét nghiệm nền tảng trong huyết học. Từ một vi trường, kỹ thuật viên có thể đếm tế bào, đánh giá hình dạng và kích thước hồng cầu hoặc phát hiện các tế bào có hình thái bất thường. Mọi phép đo định lượng như vậy đều cần biết chính xác điểm ảnh nào thuộc tế bào và điểm ảnh nào thuộc nền. Đây chính là bài toán phân đoạn ảnh. Khi thực hiện thủ công, công việc này tốn nhiều thời gian và kết quả phụ thuộc vào người thực hiện. Vì vậy, phân đoạn tự động là bước đầu tiên của hầu hết các hệ thống phân tích ảnh tiêu bản máu.
+
+Các mạng học sâu dạng mã hóa--giải mã, tiêu biểu là U-Net~\cite{ronneberger2015unet}, đã đạt độ chính xác cao trên bài toán này~\cite{depto2021blood}. Tuy nhiên, độ chính xác đó chỉ có được khi có đủ mặt nạ được gán nhãn đến từng điểm ảnh. Gán nhãn ảnh tế bào máu đặc biệt tốn công. Trong bộ dữ liệu mà đề tài sử dụng, mỗi mặt nạ có trung vị 56 vùng tế bào tách rời, và các tế bào chạm nhau phải được tách bằng những khe nền rộng vài điểm ảnh (mục~\ref{sec:dataset}). Trong khi đó, ảnh chưa gán nhãn có thể thu thập với số lượng lớn trong hoạt động xét nghiệm thường quy. Học bán giám sát khai thác chính sự chênh lệch này: mô hình học từ một ít ảnh có nhãn cùng nhiều ảnh không nhãn.
+
+Dual Agreement Consistency Learning (DACL) là một khung học bán giám sát do Wang và cộng sự đề xuất~\cite{wang2026dacl}. DACL huấn luyện đồng thời một mạng CNN nhẹ (UNeXt) và một mạng Transformer (Swin-Unet). Hai mạng giám sát chéo lẫn nhau trên ảnh không nhãn, đồng thời bị ràng buộc bởi một hàm mất mát đồng thuận kép. Khi suy luận, khung này chỉ cần mạng CNN. Thiết kế đó phù hợp với mục tiêu triển khai trên thiết bị phổ thông: mô hình được hưởng lợi từ một Transformer lớn khi huấn luyện mà không phải mang theo nó khi sử dụng.
+
+Vấn đề mà đề tài đặt ra nằm ở đặc thù của dữ liệu. DACL được xây dựng cho ảnh siêu âm thai~\cite{wang2026dacl}, nơi mỗi ảnh chứa một cấu trúc giải phẫu lớn. Ảnh hiển vi tế bào máu lại là ảnh màu nhuộm, chứa hàng chục đối tượng nhỏ trong cùng một vi trường, với nhiều tế bào chạm nhau hoặc chồng lấn. Chưa rõ các thành phần mất mát của DACL có phát huy tác dụng trên loại ảnh này hay không. Cũng chưa rõ khi so sánh trong cùng điều kiện, DACL có vượt được các phương pháp bán giám sát khác hay không, và cần cấu hình ra sao để huấn luyện ổn định khi số ảnh có nhãn rất ít.
+
+\section{Mục đích nghiên cứu}
+
+Mục đích của đề tài là xây dựng và đánh giá một mô hình phân đoạn tế bào máu dựa trên khung DACL khi dữ liệu có nhãn khan hiếm. Cụ thể, đề tài xây dựng lại từ đầu DACL và tám phương pháp bán giám sát tiêu biểu trong cùng một khung thí nghiệm, đánh giá chúng ở hai mức 5\% và 10\% ảnh có nhãn, và phân tích cơ chế của các thành phần mất mát để lựa chọn cấu hình phù hợp cho ảnh hiển vi. Mục tiêu sau cùng là một mô hình nhẹ, có thể triển khai trên thiết bị phổ thông, nhưng vẫn đạt độ chính xác gần với mô hình lớn.
+
+\section{Câu hỏi nghiên cứu}
+\label{sec:rq}
+
+Đề tài trả lời ba câu hỏi nghiên cứu:
+\begin{enumerate}[label=\textbf{CH\arabic*.},leftmargin=1.6cm]
+  \item Ở mức 5\% và 10\% ảnh có nhãn, DACL đạt độ chính xác phân đoạn tế bào máu như thế nào so với tám phương pháp bán giám sát tiêu biểu và so với học có giám sát trên cùng số ảnh có nhãn?
+  \item Lợi ích của DACL, nếu có, thể hiện ở loại lỗi nào (dương tính giả hay âm tính giả, độ trùng khớp hay độ chính xác biên) và tập trung ở những ảnh nào?
+  \item Các thành phần mất mát của DACL tương tác với nhau như thế nào, và cần chọn trọng số ra sao để huấn luyện ổn định khi mỗi vòng lặp chỉ có một ảnh có nhãn?
+\end{enumerate}
+Câu hỏi thứ nhất và thứ hai được trả lời bằng thực nghiệm (Chương~\ref{chap:ketqua}). Câu hỏi thứ ba được trả lời bằng phân tích lý thuyết (mục~\ref{sec:loss-analysis} và~\ref{sec:weights}), kết hợp với diễn biến huấn luyện quan sát được (mục~\ref{sec:res-dynamics}).
+
+\section{Ý nghĩa của nghiên cứu}
+
+Về khoa học, đề tài cung cấp một đánh giá có đối chứng của DACL trên ảnh hiển vi tế bào máu. Đánh giá này dùng chung cách chia dữ liệu, tiền xử lý và chế độ huấn luyện cho mọi phương pháp, kèm kiểm định thống kê và mã nguồn có thể tái lập. Đề tài cũng phân tích số hạng entropy trong hàm mất mát đồng thuận kép. Phân tích chỉ ra rằng số hạng đó có hai tác động ngược chiều, và giải thích vì sao trọng số của nó ảnh hưởng mạnh đến độ ổn định khi huấn luyện.
+
+Về thực tiễn, kết quả cho biết một mô hình 1,58 triệu tham số, huấn luyện với 46 ảnh có nhãn, có thể đạt độ chính xác đến đâu so với một Transformer lớn gấp 17 lần, và lợi ích đó nằm ở những loại ảnh nào. Đây là thông tin cần thiết khi quyết định có nên đầu tư gán nhãn thêm hay triển khai mô hình nhẹ cho các phòng xét nghiệm có tài nguyên tính toán hạn chế.
+
+\section{Định nghĩa thuật ngữ}
+
+Các thuật ngữ dưới đây được dùng thống nhất trong toàn bộ báo cáo.
+\begin{description}[style=nextline,leftmargin=1cm,font=\normalfont\bfseries]
+  \item[Phân đoạn ngữ nghĩa hai lớp] Gán cho mỗi điểm ảnh một trong hai nhãn \emph{tế bào} hoặc \emph{nền}, không phân biệt từng tế bào riêng lẻ.
+  \item[Mặt nạ chuẩn] Mặt nạ nhị phân do con người gán nhãn, được xem là kết quả đúng khi huấn luyện và đánh giá.
+  \item[Tỷ lệ nhãn] Phần trăm ảnh trong tập huấn luyện được giữ lại mặt nạ. Phần còn lại được dùng như ảnh không nhãn.
+  \item[Học có giám sát (FS)] Huấn luyện chỉ trên ảnh có nhãn của một tỷ lệ nhãn cho trước, không dùng ảnh không nhãn.
+  \item[Học bán giám sát (SSL)] Huấn luyện trên cả ảnh có nhãn và ảnh không nhãn, trong đó ảnh không nhãn chỉ tham gia qua các hàm mất mát không cần nhãn.
+  \item[Nhãn giả] Dự đoán của một mô hình trên ảnh không nhãn, được dùng làm mục tiêu huấn luyện cho chính mô hình đó hoặc cho mô hình khác.
+  \item[Giáo viên EMA] Mô hình có tham số bằng trung bình trượt hàm mũ của tham số một mô hình học sinh, dùng để sinh mục tiêu ổn định.
+  \item[Ramp-up] Lịch tăng dần trọng số của các hàm mất mát không giám sát từ 0 đến giá trị tối đa trong giai đoạn đầu huấn luyện.
+  \item[Thiên lệch xác nhận] Hiện tượng mô hình học theo nhãn giả sai của chính nó, hoặc của mô hình cộng tác, và ngày càng tự tin vào lỗi đó.
+\end{description}
+
+\section{Giới hạn của nghiên cứu}
+
+Đề tài giải quyết bài toán phân đoạn ngữ nghĩa hai lớp trên ảnh hai chiều. Đề tài không phân loại các dòng tế bào và không tách từng tế bào riêng lẻ. Các phương pháp bán giám sát được đánh giá ở hai mức 5\% và 10\% nhãn, tương ứng với tình huống khan hiếm nhãn mà đề tài quan tâm. Riêng học có giám sát được chạy thêm ở mức 20\% và 100\% để xác định giới hạn trên. Do giới hạn tài nguyên tính toán, ảnh được đưa vào mạng ở độ phân giải $224\times224$, và mỗi cấu hình chỉ được huấn luyện một lần. Kết quả chỉ dựa trên một bộ dữ liệu công khai, nên chưa kiểm chứng được khả năng khái quát sang ảnh từ các phòng xét nghiệm khác.
+
+\section{Các giả định}
+
+Đề tài dựa trên bốn giả định. Thứ nhất, mặt nạ chuẩn của bộ dữ liệu là chính xác và nhất quán, đủ để làm cơ sở đánh giá. Thứ hai, việc ẩn mặt nạ của một phần ảnh huấn luyện mô phỏng đúng tình huống khan hiếm nhãn trong thực tế, tức là ảnh không nhãn có cùng phân phối với ảnh có nhãn. Thứ ba, tập kiểm thử 265 ảnh, được chọn ngẫu nhiên, đại diện cho phân phối của toàn bộ dữ liệu. Thứ tư, điểm số trên các ảnh kiểm thử khác nhau có thể xem là các quan sát độc lập, là điều kiện để áp dụng kiểm định Wilcoxon theo cặp.
+
+\section{Cấu trúc của báo cáo}
+
+Ngoài phần mở đầu, báo cáo gồm năm chương. Chương~\ref{chap:tongquan} tổng quan về bài toán phân đoạn tế bào máu, các kiến trúc mạng, học bán giám sát, các phương pháp đối chứng và mô hình DACL. Chương~\ref{chap:phuongphap} trình bày phương pháp nghiên cứu, gồm khung thực nghiệm, phân tích các thành phần mất mát và lựa chọn trọng số của DACL, cách thu thập và phân tích dữ liệu. Chương~\ref{chap:ketqua} trình bày kết quả theo từng câu hỏi nghiên cứu. Chương~\ref{chap:ketluan} tóm tắt, kết luận, thảo luận và đưa ra khuyến nghị.

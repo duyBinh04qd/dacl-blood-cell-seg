@@ -41,13 +41,28 @@ pip install -r requirements.txt
 | [notebooks/ssl-pcpcs.ipynb](notebooks/ssl-pcpcs.ipynb) | Pixel-level contrastive + cross-supervised learning: UNeXt + Swin-Unet (5/10% labels) |
 | [notebooks/ssl-dstct.ipynb](notebooks/ssl-dstct.ipynb) | Dual student-teacher: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
 | [notebooks/ssl-lmct.ipynb](notebooks/ssl-lmct.ipynb) | Soft cross supervision between UNeXt and Swin-Unet (5/10% labels) |
-| [notebooks/ssl-dacl.ipynb](notebooks/ssl-dacl.ipynb) | **DACL**: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
+| [notebooks/ssl-dacl-v2.ipynb](notebooks/ssl-dacl-v2.ipynb) | **DACL**: UNeXt + Swin-Unet students, Swin-Unet EMA teacher (5/10% labels) |
 
 Each notebook covers: configuration → data preparation → **data augmentation** (configurable, with previews) →
 model → training → results table, training curves and prediction overlays.
 Only `CFG.RAW_DIR` needs to point to your Kaggle Dataset (`<dataset>/Original` + `<dataset>/Mask`).
 All notebooks share the same split (`SPLIT_SEED = 2026`), so the labeled / unlabeled / test sets are identical
 across methods. Semi-supervised notebooks use 1 labeled + 4 unlabeled images per iteration, as in the DACL paper.
+
+### Additional experiments (internal review)
+
+| Notebook | Experiment | Results |
+|---|---|---|
+| [notebooks/multi-seed.ipynb](notebooks/multi-seed.ipynb) | DACL, FS UNeXt, PCPCS, DSTCT with 3 seeds (2026-2028), labeled subset redrawn per seed; mean ± std over runs | `results/multi_seed/` |
+| [notebooks/ablation.ipynb](notebooks/ablation.ipynb) | DACL without `L_ent`, `L_cps`, `L_ict` or `L_dac`; far-false-positive analysis for the HD95 hypothesis | `results/ablation/` |
+| [notebooks/fs-same-batch.ipynb](notebooks/fs-same-batch.ipynb) | FS UNeXt with batch 1 (same steps as DACL) and with the same labeled-image budget (batch 8, 3,750 steps) | - |
+| [notebooks/density.ipynb](notebooks/density.ipynb) | Dice DACL - FS UNeXt by cell density of the ground-truth mask (CPU only, reads `results/`) | written to the working folder |
+| [notebooks/weight-check.ipynb](notebooks/weight-check.ipynb) | Gradient norms of every DACL loss term and a small weight survey (x0.5, x1, x2, x10) | `results/weight_check/` |
+
+The training notebooks reuse the data, model and loss code of the main notebooks unchanged. Add `results/` as a
+Kaggle dataset: the whole `/kaggle/input` is searched (`CFG.EXTRA_RESULT_DIRS`), so the seed-2026 runs of the main
+experiments are reused, not retrained. New runs are named `<method>_<ratio>p_s<seed>`; the suffix `_rs` marks a
+labeled subset redrawn with that seed.
 
 ### Local scripts
 
@@ -70,7 +85,9 @@ Each run writes to `runs/<model>_<ratio>p_s<seed>/`: `best.pth`, `last.pth`,
 
 ```
 ├── docs/latex/               # project proposal / report (LaTeX, Vietnamese)
-├── notebooks/                # Kaggle notebooks
+├── docs/paper/               # research paper (Word, LaTeX in the SSRC/IEEEtran format)
+├── notebooks/                # Kaggle notebooks (main experiments + additional experiments)
+├── results/                  # downloaded runs: per-image test metrics, summaries, logs, best.pth
 ├── scripts/                  # data preparation, inspection & splitting
 ├── src/
 │   ├── data/                 # Dataset, augmentation

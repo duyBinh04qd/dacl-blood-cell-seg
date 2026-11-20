@@ -1,0 +1,29 @@
+% =====================================================================
+\chapter{Mã nguồn và tái lập kết quả}
+\label{app:code}
+
+Toàn bộ mã nguồn của đề tài nằm trong kho \url{https://github.com/duyBinh04qd/dacl-blood-cell-seg}. Mỗi phương pháp được cài đặt trong một notebook tự chứa, chạy trực tiếp trên Kaggle mà không cần tải thêm mã. Mọi notebook dùng chung cách chuẩn bị dữ liệu, cách chia (hạt giống 2026), tăng cường dữ liệu và vòng lặp huấn luyện. Phần khác nhau chỉ là ô cấu hình và hàm mất mát. Bảng~\ref{tab:notebooks} liệt kê các notebook.
+
+\begin{table}[ht]
+\centering
+\caption{Các notebook trong thư mục \texttt{notebooks/}.}
+\label{tab:notebooks}
+\small
+\begin{tabular}{ll}
+\toprule
+Notebook & Nội dung \\
+\midrule
+\texttt{fs-unext.ipynb}    & UNeXt học có giám sát (5, 10, 20, 100\% nhãn) \\
+\texttt{fs-swinunet.ipynb} & Swin-Unet học có giám sát (5, 10, 20, 100\% nhãn) \\
+\texttt{ssl-mt.ipynb}, \texttt{ssl-ict.ipynb} & MT, ICT (5, 10\% nhãn) \\
+\texttt{ssl-dct.ipynb}, \texttt{ssl-cps.ipynb} & DCT, CPS (5, 10\% nhãn) \\
+\texttt{ssl-ctct.ipynb}, \texttt{ssl-pcpcs.ipynb} & CTCT, PCPCS (5, 10\% nhãn) \\
+\texttt{ssl-dstct.ipynb}, \texttt{ssl-lmct.ipynb} & DSTCT, LMCT (5, 10\% nhãn) \\
+\texttt{ssl-dacl-v2.ipynb} & DACL (5, 10\% nhãn) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Mỗi lần chạy ghi kết quả vào một thư mục con của \texttt{results/}, đặt tên theo mẫu \texttt{<phương pháp>\_<tỷ lệ>p\_s2026}. Thư mục này gồm tệp cấu hình \texttt{config.json}, log huấn luyện \texttt{log.csv}, điểm số trên từng ảnh kiểm thử \texttt{test\_per\_image.csv} và tóm tắt \texttt{test\_summary.json}. Trọng số \texttt{best.pth} không được đưa lên kho mã do dung lượng. Các bảng kết quả trong Chương~\ref{chap:ketqua} được sinh tự động từ các tệp \texttt{test\_per\_image.csv}, kể cả giá trị $p$ của kiểm định Wilcoxon. Các con số về diễn biến huấn luyện được tính từ các tệp \texttt{log.csv}.
+
+Trọng số của DACL nằm trong ô cấu hình của \texttt{ssl-dacl-v2.ipynb}, gồm \texttt{LAMBDA\_CPS = 0.2}, \texttt{TAU\_ICT = 0.2} và \texttt{BETA\_DAC = 1.0}. Để khảo sát trọng số khác, hoặc tắt số hạng $\Lent$ bằng \texttt{USE\_L\_ENT = False}, nên đổi cả \texttt{MODEL} sang một tên khác để kết quả mới không ghi đè lên thư mục \texttt{dacl}.
